@@ -35,6 +35,12 @@
   // ── Utility: wait ─────────────────────────────────────────────────────────
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+  // ── Utility: canonicalizeUrl ──────────────────────────────────────────────
+  function canonicalizeUrl(rawUrl) {
+    if (!rawUrl) return '';
+    return rawUrl.split('?')[0].replace(/\/$/, '');
+  }
+
   // ── Harvest every reel <a> currently visible in the DOM ──────────────────
   function harvestReels() {
     const anchors = document.querySelectorAll('main a, article a');
@@ -48,8 +54,9 @@
         
         // Match both /reel/ and /p/ paths
         if (urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/')) {
-          // Strip queries (like ?igsh=...) by using only origin + pathname, and drop trailing slashes
-          const cleanUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, '');
+          // Pass the absolute origin+pathname through canonicalizeUrl
+          const rawUrl = urlObj.origin + urlObj.pathname;
+          const cleanUrl = canonicalizeUrl(rawUrl);
           
           // --- TASK 2: Smart Auto-Stop Check ---
           if (knownDatabaseUrls.has(cleanUrl)) {
@@ -495,7 +502,8 @@
         if (res.ok) {
           const data = await res.json();
           if (data.urls && Array.isArray(data.urls)) {
-            data.urls.forEach(url => knownDatabaseUrls.add(url));
+            data.urls.forEach(url => knownDatabaseUrls.add(canonicalizeUrl(url)));
+            console.log('Known DB URLs:', knownDatabaseUrls.size);
             setStatus(`Loaded ${knownDatabaseUrls.size} known URLs.`, 'success');
             await wait(800); // give the user a moment to see the success state
           }
