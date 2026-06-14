@@ -89,6 +89,7 @@
           <button id="rsb-copy-btn"     class="rsb-btn ghost">📋 Copy URLs</button>
         </div>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <label for="rsb-api-url" style="font-size:11px; font-weight:600; color:rgba(255,255,255,0.7);">Vercel API Endpoint</label>
           <input type="url" id="rsb-api-url" placeholder="https://your-vercel.app/api/ingest" class="rsb-input" />
           <button id="rsb-push-btn" class="rsb-btn primary">☁ Push to Database</button>
         </div>
@@ -214,6 +215,8 @@
       #rsb-status-dot.waiting { background: #fbbf24; box-shadow: 0 0 8px #fbbf2488; animation: rsb-pulse 2s infinite; }
       #rsb-status-dot.done    { background: #a78bfa; box-shadow: 0 0 8px #a78bfa88; }
       #rsb-status-dot.stopped { background: #f87171; }
+      #rsb-status-dot.success { background: #10b981; box-shadow: 0 0 8px #10b98188; }
+      #rsb-status-dot.error   { background: #ef4444; box-shadow: 0 0 8px #ef444488; }
 
       @keyframes rsb-pulse {
         0%, 100% { opacity: 1; }
@@ -595,13 +598,13 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
       const result = await res.json();
-      setStatus(`✓ Success: ${result.inserted} inserted, ${result.skipped} skipped`, 'done');
+      setStatus(`✓ Success: ${result.inserted} inserted, ${result.skipped} skipped`, 'success');
       btn.textContent = '✓ Pushed';
       btn.classList.replace('primary', 'success');
       
     } catch (err) {
       console.error(err);
-      setStatus(`❌ Error: ${err.message}`, 'stopped');
+      setStatus(`❌ Error: ${err.message}`, 'error');
       btn.textContent = origText;
       btn.disabled = false;
     }
