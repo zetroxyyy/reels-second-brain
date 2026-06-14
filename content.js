@@ -17,13 +17,16 @@
   const PAGE_PATTERN        = /instagram\.com\/[^/]+\/saved(\/all-posts)?\/?/;
 
   // ── State ────────────────────────────────────────────────────────────────────
-  let reelSet        = new Set();   // Accumulates every unique reel URL seen so far
-  let syncing        = false;
-  let stopRequested  = false;
+  let reelSet            = new Set();   // Accumulates every unique reel URL seen so far
+  let knownDatabaseUrls  = new Set();   // URLs already present in the backend (Delta Sync)
+  let syncing            = false;
+  let stopRequested      = false;
+  let autoStopTriggered  = false;
 
   // Polling control
   let pollIntervalId = null;
   let stallTimerId   = null;
+  let pollResolver   = null; // Crucial for immediately resolving the promise on manual stop
   let lastSetSize    = 0;
 
   // Scroll-height stall detection
@@ -34,10 +37,11 @@
 
   // ── Harvest every reel <a> currently visible in the DOM ──────────────────
   function harvestReels() {
-    // Aggressive DOM scraping: query all anchors in the main grid
     const anchors = document.querySelectorAll('main a, article a');
     let added = 0;
     anchors.forEach(a => {
+      if (stopRequested) return; // fast exit if we've already hit the stop condition
+
       try {
         // Construct an absolute URL (Instagram sometimes uses relative links)
         const urlObj = new URL(a.href, window.location.origin);
@@ -47,6 +51,13 @@
           // Strip queries (like ?igsh=...) by using only origin + pathname, and drop trailing slashes
           const cleanUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, '');
           
+          // --- TASK 2: Smart Auto-Stop Check ---
+          if (knownDatabaseUrls.has(cleanUrl)) {
+            autoStopTriggered = true;
+            stopRequested = true;
+            return;
+          }
+
           if (!reelSet.has(cleanUrl)) {
             reelSet.add(cleanUrl);
             added++;
@@ -79,6 +90,10 @@
         <div id="rsb-status-dot" class="idle"></div>
         <span id="rsb-status">Waiting to start…</span>
       </div>
+      <div id="rsb-settings-row" style="padding: 0 16px 14px;">
+        <label for="rsb-api-url" style="font-size:11px; font-weight:600; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Vercel API Endpoint</label>
+        <input type="url" id="rsb-api-url" placeholder="https://your-vercel.app/api/ingest" class="rsb-input" />
+      </div>
       <div id="rsb-btn-row">
         <button id="rsb-sync-btn" class="rsb-btn primary">⟳ Sync Library</button>
         <button id="rsb-stop-btn" class="rsb-btn danger" disabled>⬛ Stop</button>
@@ -87,11 +102,7 @@
         <div style="display:flex; gap:8px;">
           <button id="rsb-download-btn" class="rsb-btn success">⬇ Download JSON</button>
           <button id="rsb-copy-btn"     class="rsb-btn ghost">📋 Copy URLs</button>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <label for="rsb-api-url" style="font-size:11px; font-weight:600; color:rgba(255,255,255,0.7);">Vercel API Endpoint</label>
-          <input type="url" id="rsb-api-url" placeholder="https://your-vercel.app/api/ingest" class="rsb-input" />
-          <button id="rsb-push-btn" class="rsb-btn primary">☁ Push to Database</button>
+          <button id="rsb-push-btn"     class="rsb-btn primary">☁ Push to DB</button>
         </div>
       </div>
       <div id="rsb-progress-bar-wrap">
@@ -319,6 +330,17 @@
     document.head.appendChild(style);
     document.body.appendChild(hud);
 
+    // Restore API URL from localStorage if available
+    const savedUrl = localStorage.getItem('rsb-api-url');
+    const apiUrlInput = document.getElementById('rsb-api-url');
+    if (savedUrl && apiUrlInput) {
+      apiUrlInput.value = savedUrl;
+    }
+
+    apiUrlInput?.addEventListener('input', (e) => {
+      localStorage.setItem('rsb-api-url', e.target.value.trim());
+    });
+
     // ── Wire up button handlers ──────────────────────────────────────────────
     document.getElementById('rsb-sync-btn').addEventListener('click', startSync);
     document.getElementById('rsb-stop-btn').addEventListener('click', requestStop);
@@ -376,10 +398,12 @@
   }
 
   // ── Core polling engine ───────────────────────────────────────────────────────
+  
   /**
-   * stopPolling — clears both the poll interval and the stall timer.
+   * stopPolling — clears intervals/timeouts and resolves the pending promise.
+   * Resolving the promise immediately ensures the `await` breaks out!
    */
-  function stopPolling() {
+  function stopPolling(resolveWith = false) {
     if (pollIntervalId !== null) {
       clearInterval(pollIntervalId);
       pollIntervalId = null;
@@ -387,6 +411,10 @@
     if (stallTimerId !== null) {
       clearTimeout(stallTimerId);
       stallTimerId = null;
+    }
+    if (pollResolver !== null) {
+      pollResolver(resolveWith);
+      pollResolver = null;
     }
   }
 
@@ -402,33 +430,37 @@
    * Resolves when either:
    *   (a) new reels are discovered → resolve(true)   → caller should scroll again
    *   (b) stall timeout expires   → resolve(false)  → caller checks scroll height
+   *   (c) manually stopped       → resolve(false)
    */
   function startPollCycle() {
     return new Promise(resolve => {
+      pollResolver = resolve;
       lastSetSize = reelSet.size;
 
       // Arm the stall timeout first
       stallTimerId = setTimeout(() => {
-        stopPolling();
-        resolve(false); // timed out — no new reels found
+        stopPolling(false); // timed out — no new reels found
       }, STALL_TIMEOUT_MS);
 
       // Fast poll to detect new reels
       pollIntervalId = setInterval(() => {
         if (stopRequested) {
-          stopPolling();
-          resolve(false);
+          stopPolling(false);
           return;
         }
 
         harvestReels();
 
+        if (stopRequested) {
+          stopPolling(false);
+          return;
+        }
+
         if (reelSet.size > lastSetSize) {
           // 🎉 New reels detected!
-          stopPolling();
           setCounter(reelSet.size);
           setStatus(`Scrolling & syncing… (${reelSet.size} found)`, 'active');
-          resolve(true); // signal: scroll again
+          stopPolling(true); // signal: scroll again
         }
       }, POLL_INTERVAL_MS);
     });
@@ -437,18 +469,48 @@
   // ── Main sync loop ────────────────────────────────────────────────────────────
   async function startSync() {
     if (syncing) return;
-    syncing       = true;
-    stopRequested = false;
+    syncing           = true;
+    stopRequested     = false;
+    autoStopTriggered = false;
 
     reelSet.clear();
+    knownDatabaseUrls.clear();
     setCounter(0);
     setButtonState(true);
     setProgress(0);
-    setStatus('Harvesting visible reels…', 'active');
 
     // Hide export row from a previous run
     const exportRow = document.getElementById('rsb-export-row');
     if (exportRow) exportRow.style.display = 'none';
+
+    // --- TASK 1: API Delta Fetch ---
+    const inputUrl = document.getElementById('rsb-api-url').value.trim();
+    if (inputUrl) {
+      try {
+        // Replace /ingest with /latest
+        const latestUrl = inputUrl.replace(/\/ingest\/?$/, '/latest');
+        setStatus('Fetching known URLs for Delta Sync...', 'waiting');
+        
+        const res = await fetch(latestUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.urls && Array.isArray(data.urls)) {
+            data.urls.forEach(url => knownDatabaseUrls.add(url));
+            setStatus(`Loaded ${knownDatabaseUrls.size} known URLs.`, 'success');
+            await wait(800); // give the user a moment to see the success state
+          }
+        }
+      } catch (err) {
+        console.error('[rsb] Delta sync fetch failed:', err);
+      }
+    }
+
+    if (stopRequested) {
+      endSync();
+      return;
+    }
+
+    setStatus('Harvesting visible reels…', 'active');
 
     // Initial harvest before any scrolling
     harvestReels();
@@ -507,14 +569,21 @@
     }
 
     clearInterval(fakeProgressId);
+    endSync();
+  }
 
+  function endSync() {
     // Final harvest sweep to catch anything we may have missed
-    harvestReels();
+    if (!autoStopTriggered) {
+      harvestReels();
+    }
     setCounter(reelSet.size);
     setProgress(100);
 
     const finalCount = reelSet.size;
-    if (stopRequested) {
+    if (autoStopTriggered) {
+      setStatus(`Reached synced reels. Delta sync complete. (${finalCount} new)`, 'success');
+    } else if (stopRequested) {
       setStatus(`Stopped. ${finalCount} reel${finalCount !== 1 ? 's' : ''} cached.`, 'stopped');
     } else {
       setStatus(`✓ Sync complete — ${finalCount} reel${finalCount !== 1 ? 's' : ''} found!`, 'done');
@@ -537,7 +606,7 @@
   function requestStop() {
     if (!syncing) return;
     stopRequested = true;
-    stopPolling();
+    stopPolling(false);
   }
 
   // ── Export handlers ───────────────────────────────────────────────────────────
