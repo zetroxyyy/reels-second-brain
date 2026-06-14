@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/utils/supabase/server';
+import { createSupabaseServiceClient } from '@/utils/supabase/server';
 import { Search, BrainCircuit, Sparkles, Film, ExternalLink, Calendar, Database, AlertCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data
@@ -8,7 +8,7 @@ export default async function DashboardPage() {
   let errorMsg = null;
 
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase
       .from('reels')
       .select('*')
