@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Reels Second Brain",
+  "version": "1.0.0",
+  "description": "Systematically scrapes and caches all of your saved Instagram Reels URLs without missing a single one.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.instagram.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.instagram.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Reels Second Brain"
+  },
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

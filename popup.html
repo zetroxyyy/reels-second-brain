@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reels Second Brain</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d14;
+      --surface:  #13131f;
+      --border:   rgba(255,255,255,0.07);
+      --purple:   #7c3aed;
+      --blue:     #60a5fa;
+      --green:    #34d399;
+      --text:     #e8e8f0;
+      --muted:    rgba(255,255,255,0.38);
+    }
+
+    body {
+      width: 320px;
+      min-height: 280px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 18px 14px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(96,165,250,0.08));
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-size: 24px; line-height: 1; }
+    .header-text h1 {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-text p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .version-badge {
+      margin-left: auto;
+      background: rgba(124,58,237,0.18);
+      color: #a78bfa;
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    /* ── Body ── */
+    .body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* ── Status Card ── */
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .status-card-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .status-steps { display: flex; flex-direction: column; gap: 8px; }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.5;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(124,58,237,0.15);
+      border: 1px solid rgba(124,58,237,0.3);
+      color: #a78bfa;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Navigate Button ── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      text-align: center;
+      text-decoration: none;
+    }
+    .btn:hover  { opacity: 0.88; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(124,58,237,0.4);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.6);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 18px 14px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .footer a { color: #a78bfa; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    /* ── Notice ── */
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(251,191,36,0.07);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: rgba(251,191,36,0.85);
+      line-height: 1.5;
+    }
+    .notice-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">🎬</div>
+    <div class="header-text">
+      <h1>Reels Second Brain</h1>
+      <p>Saved Reels Extractor</p>
+    </div>
+    <span class="version-badge">v1.0</span>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <!-- How to use -->
+    <div class="status-card">
+      <div class="status-card-title">How to Use</div>
+      <div class="status-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <span>Navigate to your Instagram <strong>Saved → All Posts</strong> page</span>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <span>Click <strong>Open Saved Page</strong> below or go there manually</span>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <span>The floating HUD will appear. Press <strong>Sync Library</strong> to begin</span>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <span>Wait for the scan to finish, then <strong>Download JSON</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notice -->
+    <div class="notice">
+      <span class="notice-icon">⚡</span>
+      <span>Keep the tab visible and do not scroll manually while syncing is in progress.</span>
+    </div>
+
+    <!-- CTA Button -->
+    <a
+      id="go-btn"
+      class="btn btn-primary"
+      href="https://www.instagram.com/your_username/saved/all-posts/"
+      target="_blank"
+    >
+      Open Instagram Saved Page ↗
+    </a>
+
+    <button id="close-btn" class="btn btn-secondary">Close</button>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Open-source · <a href="https://github.com" target="_blank">GitHub</a> · Made with ♥
+  </div>
+
+  <script>
+    document.getElementById('close-btn').addEventListener('click', () => window.close());
+  </script>
+</body>
+</html>
