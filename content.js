@@ -85,9 +85,13 @@
     hud.id = HUD_ID;
     hud.innerHTML = `
       <div id="rsb-header">
-        <span id="rsb-logo">🎬</span>
-        <span id="rsb-title">Reels Second Brain</span>
-        <button id="rsb-close-btn" title="Close HUD">✕</button>
+        <div class="rsb-header-left">
+          <span id="rsb-logo">🎬</span>
+          <span id="rsb-title">Reels Second Brain</span>
+        </div>
+        <button id="rsb-close-btn" title="Close HUD">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
       <div id="rsb-counter-row">
         <span id="rsb-counter-label">Reels Cached</span>
@@ -97,8 +101,8 @@
         <div id="rsb-status-dot" class="idle"></div>
         <span id="rsb-status">Waiting to start…</span>
       </div>
-      <div id="rsb-settings-row" style="padding: 0 16px 14px;">
-        <label for="rsb-api-url" style="font-size:11px; font-weight:600; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Vercel API Endpoint</label>
+      <div id="rsb-settings-row">
+        <label for="rsb-api-url" class="rsb-input-label">Vercel API Endpoint</label>
         <input type="url" id="rsb-api-url" placeholder="https://your-vercel.app/api/ingest" class="rsb-input" />
       </div>
       <div id="rsb-btn-row">
@@ -106,10 +110,10 @@
         <button id="rsb-stop-btn" class="rsb-btn danger" disabled>⬛ Stop</button>
       </div>
       <div id="rsb-export-row" style="display:none; flex-direction:column; gap:8px;">
-        <div style="display:flex; gap:8px;">
-          <button id="rsb-download-btn" class="rsb-btn success">⬇ Download JSON</button>
-          <button id="rsb-copy-btn"     class="rsb-btn ghost">📋 Copy URLs</button>
-          <button id="rsb-push-btn"     class="rsb-btn primary">☁ Push to DB</button>
+        <div style="display:flex; gap:8px; width: 100%;">
+          <button id="rsb-download-btn" class="rsb-btn ghost" style="flex: 1.2;">⬇ Download JSON</button>
+          <button id="rsb-copy-btn"     class="rsb-btn ghost" style="flex: 0.8;">📋 Copy</button>
+          <button id="rsb-push-btn"     class="rsb-btn primary" style="flex: 1.2;">☁ Push to DB</button>
         </div>
       </div>
       <div id="rsb-progress-bar-wrap">
@@ -120,6 +124,8 @@
     // ── Inline styles (self-contained, no external deps) ────────────────────
     const style = document.createElement('style');
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
       /* ── HUD Container ── */
       #${HUD_ID} {
         all: initial;
@@ -128,20 +134,20 @@
         right: 24px;
         z-index: 2147483647;
         width: 300px;
-        background: linear-gradient(145deg, #0d0d0d 0%, #1a1a2e 100%);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(9, 9, 11, 0.82); /* Zinc 950 glass */
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         box-shadow:
-          0 24px 60px rgba(0,0,0,0.7),
-          0 0 0 1px rgba(255,255,255,0.04) inset,
-          0 1px 0 rgba(255,255,255,0.1) inset;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: #e8e8f0;
+          0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+          0 16px 36px rgba(0, 0, 0, 0.6),
+          0 0 30px rgba(124, 58, 237, 0.08); /* Glow */
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #f4f4f5; /* Zinc 100 */
         padding: 0;
         overflow: hidden;
         user-select: none;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(24px) saturate(190%);
+        -webkit-backdrop-filter: blur(24px) saturate(190%);
         transition: opacity 0.3s ease, transform 0.3s ease;
         animation: rsb-slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       }
@@ -155,104 +161,153 @@
       #rsb-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 14px 16px 12px;
-        background: rgba(255,255,255,0.03);
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        justify-content: space-between;
+        padding: 16px 18px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .rsb-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
       #rsb-logo  { font-size: 18px; }
       #rsb-title {
-        flex: 1;
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 700;
-        letter-spacing: 0.3px;
-        background: linear-gradient(90deg, #a78bfa, #60a5fa);
+        letter-spacing: -0.2px;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
       #rsb-close-btn {
-        all: unset;
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
         cursor: pointer;
-        color: rgba(255,255,255,0.3);
-        font-size: 12px;
-        line-height: 1;
-        padding: 2px 4px;
-        border-radius: 4px;
-        transition: color 0.2s, background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
       }
       #rsb-close-btn:hover {
-        color: rgba(255,255,255,0.8);
-        background: rgba(255,255,255,0.06);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
       }
 
       /* ── Counter ── */
       #rsb-counter-row {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 16px 4px;
+        flex-direction: column;
+        gap: 4px;
+        padding: 20px 18px 8px;
       }
       #rsb-counter-label {
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 10px;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        color: rgba(255,255,255,0.35);
+        letter-spacing: 1.5px;
+        color: rgba(255, 255, 255, 0.4);
       }
       #rsb-counter {
-        font-size: 28px;
+        font-size: 38px;
         font-weight: 800;
+        letter-spacing: -1px;
         font-variant-numeric: tabular-nums;
-        background: linear-gradient(90deg, #a78bfa, #60a5fa);
+        background: linear-gradient(135deg, #f4f4f5 30%, #a1a1aa 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        transition: transform 0.15s ease;
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       #rsb-counter.bump {
-        transform: scale(1.25);
+        transform: scale(1.12);
       }
 
       /* ── Status ── */
       #rsb-status-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 16px 14px;
+        gap: 10px;
+        padding: 0 18px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       }
       #rsb-status-dot {
-        width: 7px;
-        height: 7px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
-        transition: background 0.3s ease;
+        transition: all 0.3s ease;
       }
-      #rsb-status-dot.idle    { background: rgba(255,255,255,0.2); }
-      #rsb-status-dot.active  { background: #34d399; box-shadow: 0 0 8px #34d39988; animation: rsb-pulse 1.4s infinite; }
-      #rsb-status-dot.waiting { background: #fbbf24; box-shadow: 0 0 8px #fbbf2488; animation: rsb-pulse 2s infinite; }
-      #rsb-status-dot.done    { background: #a78bfa; box-shadow: 0 0 8px #a78bfa88; }
-      #rsb-status-dot.stopped { background: #f87171; }
-      #rsb-status-dot.success { background: #10b981; box-shadow: 0 0 8px #10b98188; }
-      #rsb-status-dot.error   { background: #ef4444; box-shadow: 0 0 8px #ef444488; }
+      
+      @keyframes rsb-pulse-active {
+        0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+      }
+      @keyframes rsb-pulse-waiting {
+        0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+      }
 
-      @keyframes rsb-pulse {
-        0%, 100% { opacity: 1; }
-        50%       { opacity: 0.4; }
-      }
+      #rsb-status-dot.idle    { background: rgba(255, 255, 255, 0.25); }
+      #rsb-status-dot.active  { background: #34d399; animation: rsb-pulse-active 2s infinite; }
+      #rsb-status-dot.waiting { background: #fbbf24; animation: rsb-pulse-waiting 2s infinite; }
+      #rsb-status-dot.done    { background: #a78bfa; box-shadow: 0 0 8px rgba(167, 139, 250, 0.5); }
+      #rsb-status-dot.stopped { background: #f87171; }
+      #rsb-status-dot.success { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+      #rsb-status-dot.error   { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
 
       #rsb-status {
-        font-size: 12px;
-        color: rgba(255,255,255,0.55);
-        font-style: italic;
+        font-size: 11px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6);
         line-height: 1.4;
       }
+
+      /* ── Settings Row ── */
+      #rsb-settings-row {
+        padding: 16px 18px;
+      }
+      .rsb-input-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.4);
+        display: block;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* ── Inputs ── */
+      .rsb-input {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        color: #fff;
+        padding: 10px 12px;
+        font-family: inherit;
+        font-size: 11px;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+      .rsb-input:focus {
+        border-color: rgba(167, 139, 250, 0.5);
+        background: rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.15);
+      }
+      .rsb-input::placeholder { color: rgba(255, 255, 255, 0.25); }
 
       /* ── Buttons ── */
       #rsb-btn-row, #rsb-export-row {
         display: flex;
         gap: 8px;
-        padding: 0 14px 14px;
+        padding: 0 18px 18px;
       }
       .rsb-btn {
         all: unset;
@@ -261,71 +316,74 @@
         cursor: pointer;
         font-size: 12px;
         font-weight: 600;
-        padding: 9px 10px;
+        padding: 10px 12px;
         border-radius: 10px;
-        letter-spacing: 0.2px;
-        transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+        letter-spacing: 0.1px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
-      .rsb-btn:not(:disabled):hover   { transform: translateY(-1px); opacity: 0.9; }
-      .rsb-btn:not(:disabled):active  { transform: translateY(0);    }
-      .rsb-btn:disabled               { opacity: 0.3; cursor: not-allowed; }
+      .rsb-btn:not(:disabled):hover {
+        transform: translateY(-1px);
+      }
+      .rsb-btn:not(:disabled):active {
+        transform: scale(0.96);
+      }
+      .rsb-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
 
       .rsb-btn.primary {
-        background: linear-gradient(135deg, #7c3aed, #4f46e5);
+        background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
         color: #fff;
-        box-shadow: 0 4px 14px rgba(124,58,237,0.4);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
       }
-      .rsb-btn.primary:hover { box-shadow: 0 6px 20px rgba(124,58,237,0.55); }
+      .rsb-btn.primary:hover {
+        box-shadow: 0 6px 16px rgba(124, 58, 237, 0.45);
+      }
 
       .rsb-btn.danger {
-        background: rgba(239,68,68,0.12);
-        color: #f87171;
-        border: 1px solid rgba(239,68,68,0.25);
+        background: rgba(239, 68, 68, 0.10);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.2);
       }
-      .rsb-btn.danger:hover { background: rgba(239,68,68,0.2); }
+      .rsb-btn.danger:hover {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
 
       .rsb-btn.success {
-        background: linear-gradient(135deg, #059669, #10b981);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         color: #fff;
-        box-shadow: 0 4px 14px rgba(5,150,105,0.35);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
       }
 
       .rsb-btn.ghost {
-        background: rgba(255,255,255,0.05);
-        color: rgba(255,255,255,0.55);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.06);
       }
-      .rsb-btn.ghost:hover { background: rgba(255,255,255,0.09); }
-
-      /* ── Inputs ── */
-      .rsb-input {
-        width: 100%;
-        background: rgba(0,0,0,0.3);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 8px;
+      .rsb-btn.ghost:hover {
+        background: rgba(255, 255, 255, 0.08);
         color: #fff;
-        padding: 8px 10px;
-        font-family: inherit;
-        font-size: 11px;
-        outline: none;
-        transition: border-color 0.2s;
+        border-color: rgba(255, 255, 255, 0.1);
       }
-      .rsb-input:focus { border-color: #7c3aed; }
-      .rsb-input::placeholder { color: rgba(255,255,255,0.3); }
 
       /* ── Progress Bar ── */
       #rsb-progress-bar-wrap {
-        height: 3px;
-        background: rgba(255,255,255,0.05);
+        height: 4px;
+        background: rgba(255, 255, 255, 0.03);
         overflow: hidden;
       }
       #rsb-progress-bar {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #7c3aed, #60a5fa, #34d399);
+        background: linear-gradient(90deg, #7c3aed, #ec4899, #3b82f6);
         background-size: 200% 100%;
-        transition: width 0.4s ease;
+        transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         animation: rsb-shimmer 2.5s linear infinite;
       }
       @keyframes rsb-shimmer {
