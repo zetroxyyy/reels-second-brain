@@ -89,6 +89,12 @@ CREATE POLICY "Authenticated users have full access to reels"
   USING  (auth.role() = 'authenticated')
   WITH CHECK (auth.role() = 'authenticated');
 
+-- Allow public read access to reels so the anonymous dashboard can list them.
+CREATE POLICY "Allow public read access to reels"
+  ON public.reels
+  FOR SELECT
+  USING (true);
+
 -- Service-role key bypasses RLS by design — the ingestion route can therefore
 -- upsert freely without needing an additional policy.
 
