@@ -5,223 +5,232 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reels Second Brain</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:       #0d0d14;
-      --surface:  #13131f;
-      --border:   rgba(255,255,255,0.07);
-      --purple:   #7c3aed;
-      --blue:     #60a5fa;
-      --green:    #34d399;
-      --text:     #e8e8f0;
-      --muted:    rgba(255,255,255,0.38);
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
       width: 320px;
-      min-height: 280px;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13px;
+      background-color: #09090b; /* Zinc 950 */
+      color: #f4f4f5; /* Zinc 100 */
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 24px;
       overflow: hidden;
     }
 
     /* ── Header ── */
     .header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 18px 18px 14px;
-      background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(96,165,250,0.08));
-      border-bottom: 1px solid var(--border);
+      text-align: center;
+      margin-bottom: 24px;
     }
-    .logo { font-size: 24px; line-height: 1; }
-    .header-text h1 {
-      font-size: 14px;
+
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(236, 72, 153, 0.15));
+      border: 1px solid rgba(124, 58, 237, 0.25);
+      border-radius: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 20px rgba(124, 58, 237, 0.15);
+    }
+
+    .logo-icon {
+      font-size: 22px;
+    }
+
+    .title {
+      font-size: 20px;
       font-weight: 800;
-      letter-spacing: 0.2px;
-      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-    }
-    .header-text p {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-    .version-badge {
-      margin-left: auto;
-      background: rgba(124,58,237,0.18);
-      color: #a78bfa;
-      border: 1px solid rgba(124,58,237,0.3);
-      border-radius: 20px;
-      padding: 2px 8px;
-      font-size: 10px;
-      font-weight: 600;
+      margin-bottom: 4px;
     }
 
-    /* ── Body ── */
-    .body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-
-    /* ── Status Card ── */
-    .status-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-    }
-    .status-card-title {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-    .status-steps { display: flex; flex-direction: column; gap: 8px; }
-    .step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
+    .subtitle {
       font-size: 12px;
-      color: rgba(255,255,255,0.6);
-      line-height: 1.5;
+      font-weight: 500;
+      color: #71717a; /* Zinc 500 */
     }
-    .step-num {
-      flex-shrink: 0;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: rgba(124,58,237,0.15);
-      border: 1px solid rgba(124,58,237,0.3);
-      color: #a78bfa;
-      font-size: 10px;
-      font-weight: 700;
+
+    /* ── Instructions List ── */
+    .instructions-card {
+      background: #18181b; /* Zinc 900 */
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .icon-wrapper {
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 28px;
+      height: 28px;
+      background-color: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #a78bfa; /* Violet 300 */
+      flex-shrink: 0;
     }
 
-    /* ── Navigate Button ── */
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 11px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-      text-align: center;
-      text-decoration: none;
-    }
-    .btn:hover  { opacity: 0.88; transform: translateY(-1px); }
-    .btn:active { transform: translateY(0); }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--purple), #4f46e5);
-      color: #fff;
-      box-shadow: 0 4px 18px rgba(124,58,237,0.4);
-    }
-    .btn-secondary {
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.6);
-      border: 1px solid var(--border);
+    .icon-wrapper svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
-    /* ── Footer ── */
-    .footer {
-      padding: 10px 18px 14px;
-      text-align: center;
-      font-size: 10px;
-      color: var(--muted);
-      border-top: 1px solid var(--border);
-    }
-    .footer a { color: #a78bfa; text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
-
-    /* ── Notice ── */
-    .notice {
+    .step-content {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      background: rgba(251,191,36,0.07);
-      border: 1px solid rgba(251,191,36,0.2);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 11px;
-      color: rgba(251,191,36,0.85);
-      line-height: 1.5;
+      flex-direction: column;
+      gap: 2px;
     }
-    .notice-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    .step-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #e4e4e7; /* Zinc 200 */
+    }
+
+    .step-desc {
+      font-size: 11px;
+      color: #71717a; /* Zinc 500 */
+      line-height: 1.4;
+    }
+
+    .highlight {
+      color: #f4f4f5;
+      font-weight: 600;
+      background: rgba(167, 139, 250, 0.1);
+      padding: 1px 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(167, 139, 250, 0.15);
+    }
+
+    /* ── Footer / Status ── */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #52525b; /* Zinc 600 */
+      text-align: center;
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background-color: #10b981; /* Emerald 500 */
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
   </style>
 </head>
 <body>
 
   <!-- Header -->
   <div class="header">
-    <div class="logo">🎬</div>
-    <div class="header-text">
-      <h1>Reels Second Brain</h1>
-      <p>Saved Reels Extractor</p>
+    <div class="logo-container">
+      <span class="logo-icon">🎬</span>
     </div>
-    <span class="version-badge">v1.0</span>
+    <h1 class="title">Reels Second Brain</h1>
+    <p class="subtitle">Your AI-powered knowledge base</p>
   </div>
 
-  <!-- Body -->
-  <div class="body">
-
-    <!-- How to use -->
-    <div class="status-card">
-      <div class="status-card-title">How to Use</div>
-      <div class="status-steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <span>Navigate to your Instagram <strong>Saved → All Posts</strong> page</span>
+  <!-- Instructions Container -->
+  <div class="instructions-card">
+    <div class="step-list">
+      
+      <!-- Step 1 -->
+      <div class="step-item">
+        <div class="icon-wrapper">
+          <!-- External Link Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
         </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <span>Click <strong>Open Saved Page</strong> below or go there manually</span>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <span>The floating HUD will appear. Press <strong>Sync Library</strong> to begin</span>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <span>Wait for the scan to finish, then <strong>Download JSON</strong></span>
+        <div class="step-content">
+          <span class="step-title">Navigate to Instagram</span>
+          <span class="step-desc">Open your <span class="highlight">Saved Reels</span> page in a browser tab.</span>
         </div>
       </div>
+
+      <!-- Step 2 -->
+      <div class="step-item">
+        <div class="icon-wrapper">
+          <!-- Terminal / Window Icon -->
+          <svg viewBox="0 0 24 24">
+            <rect x="2" y="3" width="20" height="18" rx="2" ry="2"></rect>
+            <line x1="2" y1="9" x2="22" y2="9"></line>
+            <line x1="8" y1="21" x2="8" y2="9"></line>
+          </svg>
+        </div>
+        <div class="step-content">
+          <span class="step-title">Wait for the HUD widget</span>
+          <span class="step-desc">The widget will automatically slide in on the bottom-right.</span>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-item">
+        <div class="icon-wrapper">
+          <!-- Refresh / Sync Icon -->
+          <svg viewBox="0 0 24 24">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </div>
+        <div class="step-content">
+          <span class="step-title">Click 'Sync Library'</span>
+          <span class="step-desc">Extract all your saved reels and keep them synced with your second brain.</span>
+        </div>
+      </div>
+
     </div>
-
-    <!-- Notice -->
-    <div class="notice">
-      <span class="notice-icon">⚡</span>
-      <span>Keep the tab visible and do not scroll manually while syncing is in progress.</span>
-    </div>
-
-    <!-- CTA Button -->
-    <button id="go-btn" class="btn btn-primary">
-      Open My Saved Reels ↗
-    </button>
-
-    <button id="close-btn" class="btn btn-secondary">Close</button>
-
   </div>
 
-  <!-- Footer -->
+  <!-- Footer/Status Indicator -->
   <div class="footer">
-    Reels Second Brain · Made with ♥
+    <div class="pulse-dot"></div>
+    <span>Extension Active · v1.0.0</span>
   </div>
 
-  <script src="popup.js"></script>
 </body>
 </html>
