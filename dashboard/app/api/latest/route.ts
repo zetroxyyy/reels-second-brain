@@ -24,7 +24,8 @@ export async function GET() {
     const supabase = createSupabaseServiceClient()
 
     // Query the reels table for the most recent 100 entries
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('reels')
       .select('original_url')
       .order('created_at', { ascending: false })
@@ -39,7 +40,8 @@ export async function GET() {
     }
 
     // Map array of objects to a simple string array of URLs
-    const urls = data.map((row) => row.original_url)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const urls = (data || []).map((row: any) => row.original_url)
 
     return NextResponse.json(
       { urls },
