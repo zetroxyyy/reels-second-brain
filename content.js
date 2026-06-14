@@ -34,13 +34,26 @@
 
   // ── Harvest every reel <a> currently visible in the DOM ──────────────────
   function harvestReels() {
-    const anchors = document.querySelectorAll('a[href*="/reel/"]');
+    // Aggressive DOM scraping: query all anchors in the main grid
+    const anchors = document.querySelectorAll('main a, article a');
     let added = 0;
     anchors.forEach(a => {
-      const url = a.href.split('?')[0].replace(/\/$/, ''); // strip query params & trailing slash
-      if (url && !reelSet.has(url)) {
-        reelSet.add(url);
-        added++;
+      try {
+        // Construct an absolute URL (Instagram sometimes uses relative links)
+        const urlObj = new URL(a.href, window.location.origin);
+        
+        // Match both /reel/ and /p/ paths
+        if (urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/')) {
+          // Strip queries (like ?igsh=...) by using only origin + pathname, and drop trailing slashes
+          const cleanUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, '');
+          
+          if (!reelSet.has(cleanUrl)) {
+            reelSet.add(cleanUrl);
+            added++;
+          }
+        }
+      } catch (e) {
+        // Ignore invalid URLs
       }
     });
     return added;
@@ -70,9 +83,15 @@
         <button id="rsb-sync-btn" class="rsb-btn primary">⟳ Sync Library</button>
         <button id="rsb-stop-btn" class="rsb-btn danger" disabled>⬛ Stop</button>
       </div>
-      <div id="rsb-export-row" style="display:none;">
-        <button id="rsb-download-btn" class="rsb-btn success">⬇ Download JSON</button>
-        <button id="rsb-copy-btn"     class="rsb-btn ghost">📋 Copy URLs</button>
+      <div id="rsb-export-row" style="display:none; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px;">
+          <button id="rsb-download-btn" class="rsb-btn success">⬇ Download JSON</button>
+          <button id="rsb-copy-btn"     class="rsb-btn ghost">📋 Copy URLs</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <input type="url" id="rsb-api-url" placeholder="https://your-vercel.app/api/ingest" class="rsb-input" />
+          <button id="rsb-push-btn" class="rsb-btn primary">☁ Push to Database</button>
+        </div>
       </div>
       <div id="rsb-progress-bar-wrap">
         <div id="rsb-progress-bar"></div>
@@ -258,6 +277,22 @@
       }
       .rsb-btn.ghost:hover { background: rgba(255,255,255,0.09); }
 
+      /* ── Inputs ── */
+      .rsb-input {
+        width: 100%;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: #fff;
+        padding: 8px 10px;
+        font-family: inherit;
+        font-size: 11px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .rsb-input:focus { border-color: #7c3aed; }
+      .rsb-input::placeholder { color: rgba(255,255,255,0.3); }
+
       /* ── Progress Bar ── */
       #rsb-progress-bar-wrap {
         height: 3px;
@@ -287,6 +322,7 @@
     document.getElementById('rsb-close-btn').addEventListener('click', removeHUD);
     document.getElementById('rsb-download-btn').addEventListener('click', downloadJSON);
     document.getElementById('rsb-copy-btn').addEventListener('click', copyURLs);
+    document.getElementById('rsb-push-btn').addEventListener('click', pushToDatabase);
   }
 
   // ── HUD helpers ──────────────────────────────────────────────────────────────
@@ -527,6 +563,48 @@
         setTimeout(() => { btn.textContent = orig; }, 2000);
       }
     });
+  }
+
+  async function pushToDatabase() {
+    const inputUrl = document.getElementById('rsb-api-url').value.trim();
+    if (!inputUrl) {
+      setStatus('Please enter an API Endpoint', 'stopped');
+      return;
+    }
+
+    const btn = document.getElementById('rsb-push-btn');
+    const origText = btn.textContent;
+    btn.textContent = 'Pushing...';
+    btn.disabled = true;
+    setStatus('Pushing to Vercel API...', 'waiting');
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      source: window.location.href,
+      totalReels: reelSet.size,
+      reels: [...reelSet].map((url, i) => ({ id: i + 1, url }))
+    };
+
+    try {
+      const res = await fetch(inputUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const result = await res.json();
+      setStatus(`✓ Success: ${result.inserted} inserted, ${result.skipped} skipped`, 'done');
+      btn.textContent = '✓ Pushed';
+      btn.classList.replace('primary', 'success');
+      
+    } catch (err) {
+      console.error(err);
+      setStatus(`❌ Error: ${err.message}`, 'stopped');
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
   }
 
   // ── Route watcher: inject HUD only on saved-reels pages ────────────────────
