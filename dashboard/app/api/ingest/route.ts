@@ -36,6 +36,16 @@ const MAX_REELS_PER_REQUEST = 5_000
 /** How many rows to upsert in a single Supabase call */
 const UPSERT_BATCH_SIZE = 100
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 200, headers: corsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   // ── 1. Parse & validate request body ──────────────────────────────────────
   let rawBody: unknown
@@ -176,7 +186,10 @@ export async function POST(request: NextRequest) {
         warning: `${perUrlErrors.length} URLs failed to ingest. See the 'errors' array for details.`,
       }),
     },
-    { status: hasErrors ? 207 : 200 } // 207 Multi-Status when partial failures
+    { 
+      status: hasErrors ? 207 : 200, // 207 Multi-Status when partial failures
+      headers: corsHeaders
+    }
   )
 }
 
