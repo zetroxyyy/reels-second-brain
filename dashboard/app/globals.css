@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #09090b;
+  --foreground: #fafafa;
 }
 
 @theme inline {
   --color-background: #09090b; /* Zinc 950 */
   --color-foreground: #fafafa; /* Zinc 50 */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plus-jakarta), sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
 
 body {
