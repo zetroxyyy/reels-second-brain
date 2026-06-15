@@ -11,7 +11,7 @@
  *   • Delete button per card (wired to deleteReel Server Action)
  */
 
-import { useMemo, useState, useTransition, useRef, useCallback } from 'react'
+import { useMemo, useState, useTransition, useRef, useCallback, useEffect } from 'react'
 import {
   Search, X, Loader2, Sparkles, Film, ExternalLink,
   Calendar, Tag, ChevronRight, AlertCircle,
@@ -56,10 +56,10 @@ function extractShortcode(url: string): string {
 
 /** Build Instagram's self-contained embed iframe URL for a reel. */
 function buildEmbedUrl(url: string): string {
-  const shortcode = extractShortcode(url)
-  if (!shortcode) return ''
-  // The /embed/ endpoint serves a full standalone video player — no JS needed.
-  return `https://www.instagram.com/reel/${shortcode}/embed/`
+  if (!url) return ''
+  // Ensure the URL ends with a slash and append embed/
+  const base = url.split('?')[0].replace(/\/$/, '')
+  return `${base}/embed/`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,34 +77,28 @@ function ReelCard({ reel }: { reel: Reel }) {
   return (
     <div className="group relative flex flex-col rounded-2xl overflow-hidden bg-[#111113] border border-white/5 transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-500/25 hover:shadow-[0_16px_48px_-12px_rgba(168,85,247,0.2)]">
 
-      {/* ── Instagram Embed / Placeholder ────────────────────────────────── */}
-      {isProcessed && embedUrl ? (
-        /* Processed: show the real Instagram Reel embed player */
+      {/* ── Instagram Embed ────────────────────────────────────────────────── */}
+      {embedUrl ? (
         <div className="relative w-full bg-black" style={{ paddingBottom: '177.78%' /* 9:16 */ }}>
           <iframe
             src={embedUrl}
             className="absolute inset-0 w-full h-full border-0"
-            title={`Instagram Reel ${shortcode}`}
+            title={`Instagram Reel ${shortcode || reel.id}`}
             loading="lazy"
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
             allowFullScreen
           />
         </div>
       ) : (
-        /* Pending / failed: elegant dark placeholder */
+        /* Fallback: elegant dark placeholder */
         <div className="flex flex-col items-center justify-center bg-black/40 py-14 gap-3 relative overflow-hidden">
           {/* Background pattern */}
           <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.01)_10px,rgba(255,255,255,0.01)_20px)]" />
-          <div className={`
-            w-14 h-14 rounded-2xl flex items-center justify-center z-10
-            ${isFailed
-              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
-              : 'bg-white/[0.03] border border-white/10 text-zinc-500 group-hover:border-purple-500/30 group-hover:text-purple-400 group-hover:scale-110 transition-all duration-300'}
-          `}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center z-10 bg-white/[0.03] border border-white/10 text-zinc-500">
             <Film className="w-6 h-6" />
           </div>
           <span className="text-[11px] font-semibold tracking-wider uppercase z-10 text-zinc-600">
-            {isFailed ? 'Download failed' : 'Processing queue'}
+            Invalid URL
           </span>
         </div>
       )}
@@ -251,8 +245,8 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
   }, [initialReels, searchResults, activeCategory])
 
   // ── Search handler ──────────────────────────────────────────────────────────
-  const handleSearch = useCallback(() => {
-    const q = searchQuery.trim()
+  const handleSearch = useCallback((query: string) => {
+    const q = query.trim()
     if (!q) {
       setSearchResults(null)
       setSearchError(null)
@@ -269,7 +263,16 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
         setSearchResults(null)
       }
     })
-  }, [searchQuery])
+  }, [])
+
+  // Live search as user types, with a 500ms debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, handleSearch])
 
   const clearSearch = useCallback(() => {
     setSearchQuery('')
@@ -308,7 +311,7 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
               id="semantic-search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
               placeholder="Try: 'pasta recipe', 'travel in Japan', 'Python tutorial'…"
               className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 px-3 py-4 outline-none border-none font-medium"
             />
@@ -323,7 +326,7 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
             )}
             {/* Search button */}
             <button
-              onClick={handleSearch}
+              onClick={() => handleSearch(searchQuery)}
               disabled={isSearching || !searchQuery.trim()}
               className="mr-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_16px_rgba(168,85,247,0.4)] transition-all active:scale-95"
             >

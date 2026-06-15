@@ -140,3 +140,7 @@ verify.ps1
 .supabase/
 supabase/.branches/
 supabase/.temp/
+
+#gemini said to add this
+worker/.env
+worker/venv/

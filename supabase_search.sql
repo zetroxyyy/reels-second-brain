@@ -59,6 +59,8 @@ BEGIN
   WHERE
     -- Only consider rows that have been processed (embedding IS NOT NULL).
     r.embedding IS NOT NULL
+    -- Filter out any rows where the AI summary indicates a failed processing.
+    AND (r.ai_summary IS NULL OR r.ai_summary NOT LIKE '%[FAILED]%')
     -- Apply the similarity threshold filter.
     AND (1 - (r.embedding <=> query_embedding)) > match_threshold
   ORDER BY
