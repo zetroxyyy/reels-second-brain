@@ -1,0 +1,19 @@
+# =============================================================================
+# Reels Second Brain — Worker Requirements
+# Install with:  pip install -r requirements.txt
+# =============================================================================
+
+# Supabase Python client (database reads/writes)
+supabase
+
+# Environment variable loading from .env file
+python-dotenv
+
+# YouTube/Instagram downloader (audio extraction)
+yt-dlp
+
+# OpenAI Whisper — local speech-to-text (base model fits in 8 GB RAM)
+openai-whisper
+
+# HTTP requests (Ollama local API calls)
+requests
