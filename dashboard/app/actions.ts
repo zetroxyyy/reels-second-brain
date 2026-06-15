@@ -114,3 +114,104 @@ export async function manualIngest(url: string): Promise<{ success: boolean; err
   revalidatePath('/')
   return { success: true }
 }
+
+// =============================================================================
+// searchReels
+// =============================================================================
+/**
+ * Semantic vector search across all processed reels.
+ *
+ * Pipeline:
+ *   1. Lazy-load the @xenova/transformers embedding pipeline (cached in module
+ *      scope so subsequent calls in the same Vercel function instance are fast).
+ *   2. Embed the user's query string into a 768-dim float array using the
+ *      Xenova/nomic-embed-text-v1.5 ONNX model — the exact same model that
+ *      the VPS worker uses via Ollama, so vectors are in the same space.
+ *   3. Call the `match_reels` Supabase RPC (see supabase_search.sql) with the
+ *      vector, which performs approximate nearest-neighbour search via pgvector.
+ *   4. Return the ranked array of matching reel rows.
+ *
+ * Cold-start note:
+ *   The first call on a fresh Vercel function instance will download the
+ *   quantized ONNX model (~133 MB) to /tmp and may take 30–60 seconds.
+ *   Subsequent calls in the same instance reuse the cached pipeline and
+ *   typically complete in under 2 seconds.
+ *
+ * @param query — Plain-text search query from the user.
+ * @returns     — Array of matching reel rows ordered by cosine similarity.
+ */
+
+// Module-level pipeline cache — survives across requests in the same
+// Vercel function container (warm invocations reuse this reference).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _embeddingPipeline: any = null
+
+async function getEmbeddingPipeline() {
+  if (_embeddingPipeline) return _embeddingPipeline
+
+  // Dynamic import keeps the heavy ONNX modules out of the initial bundle
+  // and only loads them when searchReels is actually called.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transformers = await import('@xenova/transformers') as any
+  const { pipeline, env } = transformers
+
+  // Point the model cache at /tmp — the only writable directory on Vercel.
+  // On a VPS / local dev, any writable path works.
+  env.cacheDir       = '/tmp/.cache/xenova'
+  env.localModelPath = '/tmp/.cache/xenova'
+  env.allowRemoteModels = true
+
+  _embeddingPipeline = await pipeline(
+    'feature-extraction',
+    'Xenova/nomic-embed-text-v1.5',
+    { quantized: true }   // use quantized model (~133 MB vs ~274 MB full)
+  )
+
+  return _embeddingPipeline
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function searchReels(query: string): Promise<any[]> {
+  const trimmed = query?.trim()
+  if (!trimmed || trimmed.length < 2) return []
+
+  // ── 1. Embed the query ──────────────────────────────────────────────────────
+  let embedding: number[]
+  try {
+    const pipe   = await getEmbeddingPipeline()
+    // mean-pool + L2-normalize matches the Ollama nomic-embed-text output
+    const output = await pipe(trimmed, { pooling: 'mean', normalize: true })
+    // output.data is a Float32Array; convert to a plain number[] for Supabase
+    embedding = Array.from(output.data as Float32Array)
+  } catch (err) {
+    console.error('[searchReels] Embedding error:', err)
+    throw new Error('Failed to generate query embedding. Check that @xenova/transformers is installed.')
+  }
+
+  if (embedding.length !== 768) {
+    throw new Error(`Unexpected embedding dimension: ${embedding.length} (expected 768).`)
+  }
+
+  // ── 2. Call Supabase match_reels RPC ────────────────────────────────────────
+  let supabase: ReturnType<typeof createSupabaseServiceClient>
+  try {
+    supabase = createSupabaseServiceClient()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Configuration error'
+    throw new Error(message)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('match_reels', {
+    query_embedding:  embedding,
+    match_threshold:  0.40,   // 40 % cosine similarity minimum
+    match_count:      30,     // max 30 results
+  })
+
+  if (error) {
+    console.error('[searchReels] RPC error:', error)
+    throw new Error(`Supabase RPC error: ${error.message}`)
+  }
+
+  return (data as any[]) ?? []
+}
