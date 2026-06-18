@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { streamText, convertToModelMessages, embed } from 'ai'
+import { streamText, convertToModelMessages } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
 
@@ -39,17 +39,24 @@ export async function POST(req: Request) {
     let context = 'No matching context found.'
 
     if (query.trim()) {
-      // ── 1. Generate embedding using cloud API via Vercel AI SDK ────────────
+      // ── 1. Generate embedding using direct HTTP fetch to VPS Ollama ────────
       let queryEmbedding: number[] = []
       try {
-        const queryText = `search_query: ${query.trim()}`
-        const { embedding } = await embed({
-          model: groq.embedding('nomic-embed-text-v1_5'),
-          value: queryText,
-        })
+        const ollamaRes = await fetch('http://178.18.252.66:11434/api/embeddings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'nomic-embed-text',
+            prompt: `search_query: ${query.trim()}`
+          })
+        });
+
+        if (!ollamaRes.ok) throw new Error('VPS Embedding Failed');
+        const ollamaData = await ollamaRes.json();
+        const embedding = ollamaData.embedding;
         queryEmbedding = embedding
       } catch (err) {
-        console.error('[chat-api] Cloud embedding generation failed:', err)
+        console.error('[chat-api] VPS Ollama embedding generation failed:', err)
       }
 
       // ── 2. Query Supabase match_reels RPC ────────────────────────────────────
