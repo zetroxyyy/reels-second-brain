@@ -2,6 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
+import { pipeline, env } from '@xenova/transformers'
+
+// Point the model cache at /tmp — the only writable directory on Vercel.
+env.cacheDir = '/tmp/.cache/xenova'
+env.localModelPath = '/tmp/.cache/xenova'
+env.allowRemoteModels = true
 
 // =============================================================================
 // Server Actions — app/actions.ts
@@ -141,79 +147,71 @@ export async function manualIngest(url: string): Promise<{ success: boolean; err
  * @returns     — Array of matching reel rows ordered by cosine similarity.
  */
 
-// Module-level pipeline cache — survives across requests in the same
-// Vercel function container (warm invocations reuse this reference).
+// Module-level pipeline promise (singleton)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _embeddingPipeline: any = null
+let embeddingPipelinePromise: Promise<any> | null = null
 
-async function getEmbeddingPipeline() {
-  if (_embeddingPipeline) return _embeddingPipeline
-
-  // Dynamic import keeps the heavy ONNX modules out of the initial bundle
-  // and only loads them when searchReels is actually called.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transformers = await import('@xenova/transformers') as any
-  const { pipeline, env } = transformers
-
-  // Point the model cache at /tmp — the only writable directory on Vercel.
-  // On a VPS / local dev, any writable path works.
-  env.cacheDir       = '/tmp/.cache/xenova'
-  env.localModelPath = '/tmp/.cache/xenova'
-  env.allowRemoteModels = true
-
-  _embeddingPipeline = await pipeline(
-    'feature-extraction',
-    'Xenova/nomic-embed-text-v1.5',
-    { quantized: true }   // use quantized model (~133 MB vs ~274 MB full)
-  )
-
-  return _embeddingPipeline
+function getEmbeddingPipeline() {
+  if (!embeddingPipelinePromise) {
+    embeddingPipelinePromise = pipeline(
+      'feature-extraction',
+      'Xenova/nomic-embed-text-v1.5',
+      { quantized: true } // use quantized model (~133 MB vs ~274 MB full)
+    )
+  }
+  return embeddingPipelinePromise
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function searchReels(query: string): Promise<any[]> {
-  const trimmed = query?.trim()
-  if (!trimmed || trimmed.length < 2) return []
-
-  // ── 1. Embed the query ──────────────────────────────────────────────────────
-  let embedding: number[]
   try {
-    const pipe   = await getEmbeddingPipeline()
-    // mean-pool + L2-normalize matches the Ollama nomic-embed-text output
-    const output = await pipe(trimmed, { pooling: 'mean', normalize: true })
-    // output.data is a Float32Array; convert to a plain number[] for Supabase
-    embedding = Array.from(output.data as Float32Array)
-  } catch (err) {
-    console.error('[searchReels] Embedding error:', err)
-    throw new Error('Failed to generate query embedding. Check that @xenova/transformers is installed.')
+    const trimmed = query?.trim()
+    if (!trimmed || trimmed.length < 2) return []
+
+    // ── 1. Embed the query ──────────────────────────────────────────────────────
+    let embedding: number[]
+    try {
+      const pipe = await getEmbeddingPipeline()
+      // mean-pool + L2-normalize matches the Ollama nomic-embed-text output
+      const output = await pipe(trimmed, { pooling: 'mean', normalize: true })
+      // output.data is a Float32Array; convert to a plain number[] for Supabase
+      embedding = Array.from(output.data as Float32Array)
+    } catch (err) {
+      console.error('[searchReels] Embedding error:', err)
+      return [] // Return an empty array gracefully on embedding failure
+    }
+
+    if (embedding.length !== 768) {
+      console.error(`[searchReels] Unexpected embedding dimension: ${embedding.length} (expected 768).`)
+      return []
+    }
+
+    // ── 2. Call Supabase match_reels RPC ────────────────────────────────────────
+    let supabase: ReturnType<typeof createSupabaseServiceClient>
+    try {
+      supabase = createSupabaseServiceClient()
+    } catch (err) {
+      console.error('[searchReels] Supabase client configuration error:', err)
+      return []
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('match_reels', {
+      query_embedding:  embedding,
+      match_threshold:  0.40,   // 40 % cosine similarity minimum
+      match_count:      30,     // max 30 results
+    })
+
+    if (error) {
+      console.error('[searchReels] RPC error:', error)
+      return []
+    }
+
+    return (data as any[]) ?? []
+  } catch (globalErr) {
+    console.error('[searchReels] Unhandled exception in searchReels:', globalErr)
+    return []
   }
-
-  if (embedding.length !== 768) {
-    throw new Error(`Unexpected embedding dimension: ${embedding.length} (expected 768).`)
-  }
-
-  // ── 2. Call Supabase match_reels RPC ────────────────────────────────────────
-  let supabase: ReturnType<typeof createSupabaseServiceClient>
-  try {
-    supabase = createSupabaseServiceClient()
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Configuration error'
-    throw new Error(message)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc('match_reels', {
-    query_embedding:  embedding,
-    match_threshold:  0.40,   // 40 % cosine similarity minimum
-    match_count:      30,     // max 30 results
-  })
-
-  if (error) {
-    console.error('[searchReels] RPC error:', error)
-    throw new Error(`Supabase RPC error: ${error.message}`)
-  }
-
-  return (data as any[]) ?? []
 }
 
 // =============================================================================
