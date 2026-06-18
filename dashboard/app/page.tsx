@@ -63,7 +63,7 @@ export default async function DashboardPage() {
                 Reels Second Brain
               </h1>
               <p className="text-[10px] text-zinc-500 font-semibold tracking-wide uppercase mt-0.5">
-                Phase 4 — Semantic Search
+                AI Reels Knowledge Base
               </p>
             </div>
           </div>
