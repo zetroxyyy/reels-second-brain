@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     if (query.trim()) {
       // ── 1. Generate embedding using lazy-loaded transformers singleton ──────
-      let embedding: number[] = []
+      let queryEmbedding: number[] = []
       try {
         if (!extractorCache) {
           const { pipeline, env } = await import('@xenova/transformers') as any
@@ -58,29 +58,29 @@ export async function POST(req: Request) {
           )
         }
 
-        // Prepend the required 'search_query: ' prefix to query for nomic-embed-text compatibility
-        const prefixedQuery = `search_query: ${query.trim()}`
-        const output = await extractorCache(prefixedQuery, { pooling: 'mean', normalize: true })
-        embedding = Array.from(output.data as Float32Array)
+        // Prepend the required 'search_query: ' prefix for nomic-embed-text compatibility
+        query = `search_query: ${query.trim()}`
+        const output = await extractorCache(query, { pooling: 'mean', normalize: true });
+        const embedding = Array.from(output.data) as number[];
+        queryEmbedding = embedding;
       } catch (err) {
         console.error('[chat-api] Embedding generation failed:', err)
       }
 
       // ── 2. Query Supabase match_reels RPC ────────────────────────────────────
-      if (embedding.length === 768) {
+      if (queryEmbedding.length === 768) {
         try {
           const supabase = createSupabaseServiceClient()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: matchedReels, error } = await (supabase as any).rpc('match_reels', {
-            query_embedding:  embedding,
-            match_threshold:  0.20, // Low threshold for more permissive matching in RAG chat
-            match_count:      4,    // top 4 matches
+          const { data, error } = await (supabase as any).rpc('match_reels', {
+            query_embedding:  queryEmbedding,
+            match_threshold:  0.01,
+            match_count:      5,
           })
 
-          if (error) {
-            console.error('[chat-api] RPC error:', error)
-          } else if (matchedReels && matchedReels.length > 0) {
-            context = matchedReels
+          let contextString = 'No matching context found.'
+          if (data && data.length > 0) {
+            contextString = data
               .map((r: any, index: number) => {
                 return `Reel #${index + 1}:
 URL: ${r.original_url}
@@ -90,6 +90,12 @@ Transcript: ${r.transcript || 'No transcript available.'}
               })
               .join('\n\n')
           }
+
+          console.log('Supabase Error:', error);
+          console.log('Matched Reels Count:', data?.length);
+          console.log('Constructed Context Length:', contextString.length);
+
+          context = contextString
         } catch (dbErr) {
           console.error('[chat-api] Supabase search failed:', dbErr)
         }
