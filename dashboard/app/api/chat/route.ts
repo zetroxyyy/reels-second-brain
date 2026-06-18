@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { streamText, convertToModelMessages } from 'ai'
+import { streamText, convertToModelMessages, embed } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
 
@@ -8,10 +8,6 @@ const groq = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1',
 })
-
-// Module-level lazy loaded extractor cache (singleton)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let extractorCache: any = null
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +29,7 @@ export async function POST(req: Request) {
           .map((part: any) => part.text)
           .join('')
       }
-
+      
       // Fallback to content if query is still empty/whitespace
       if (!query.trim() && typeof lastUserMessage.content === 'string') {
         query = lastUserMessage.content
@@ -43,32 +39,21 @@ export async function POST(req: Request) {
     let context = 'No matching context found.'
 
     if (query.trim()) {
-      // ── 1. Generate embedding using lazy-loaded transformers singleton ──────
+      // ── 1. Generate embedding using cloud API via Vercel AI SDK ────────────
       let queryEmbedding: number[] = []
       try {
-        if (!extractorCache) {
-          const { pipeline, env } = await import('@huggingface/transformers') as any
-          env.allowLocalModels = false
-          env.useBrowserCache = false
-
-          extractorCache = await pipeline(
-            'feature-extraction',
-            'Xenova/nomic-embed-text-v1.5',
-            { quantized: true }
-          )
-        }
-
-        // Prepend the required 'search_query: ' prefix for nomic-embed-text compatibility
-        query = `search_query: ${query.trim()}`
-        const output = await extractorCache(query, { pooling: 'mean', normalize: true });
-        const embedding = Array.from(output.data) as number[];
-        queryEmbedding = embedding;
+        const queryText = `search_query: ${query.trim()}`
+        const { embedding } = await embed({
+          model: groq.embedding('nomic-embed-text-v1_5'),
+          value: queryText,
+        })
+        queryEmbedding = embedding
       } catch (err) {
-        console.error('[chat-api] Embedding generation failed:', err)
+        console.error('[chat-api] Cloud embedding generation failed:', err)
       }
 
       // ── 2. Query Supabase match_reels RPC ────────────────────────────────────
-      if (queryEmbedding.length === 768) {
+      if (queryEmbedding && queryEmbedding.length === 768) {
         try {
           const supabase = createSupabaseServiceClient()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
