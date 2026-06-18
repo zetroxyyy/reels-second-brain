@@ -117,12 +117,19 @@ export async function POST(request: NextRequest) {
   // ── 4. Canonicalize URLs ───────────────────────────────────────────────────
   // Strip query params and trailing slashes — same logic as the extension's
   // harvestReels() function — to ensure perfect deduplication.
-  const canonicalize = (url: string): string =>
-    url.split('?')[0].replace(/\/$/, '')
+  const uniqueUrls: string[] = []
+  const seen = new Set<string>()
 
-  // Deduplicate within this payload (the extension already uses a Set, but
-  // an extra guard here is cheap).
-  const uniqueUrls = [...new Set(reels.map(r => canonicalize(r.url)))]
+  for (const reel of reels) {
+    const rawUrl = typeof reel === 'string' ? reel : (reel as any)?.url
+    if (!rawUrl) continue
+
+    const cleanUrl = rawUrl.split('?')[0].replace(/\/$/, '')
+    if (!seen.has(cleanUrl)) {
+      seen.add(cleanUrl)
+      uniqueUrls.push(cleanUrl)
+    }
+  }
 
   // ── 5. Batch-upsert into Supabase ─────────────────────────────────────────
   // We use upsert with ignoreDuplicates so re-running the same export is safe.

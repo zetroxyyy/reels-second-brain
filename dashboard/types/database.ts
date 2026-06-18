@@ -151,10 +151,13 @@ export const ReelInsertSchema = z.object({
 // Matches the exact JSON structure produced by content.js → downloadJSON()
 // =============================================================================
 
-const ExtensionReelItemSchema = z.object({
-  id:  z.number().int().positive(),
-  url: z.string().url(),
-})
+const ExtensionReelItemSchema = z.union([
+  z.string().url(),
+  z.object({
+    id:  z.number().int().positive().optional(),
+    url: z.string().url(),
+  }),
+])
 
 export const ExtensionExportSchema = z.object({
   exportedAt:  z.string().datetime({ offset: true }),

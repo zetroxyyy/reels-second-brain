@@ -215,3 +215,34 @@ export async function searchReels(query: string): Promise<any[]> {
 
   return (data as any[]) ?? []
 }
+
+// =============================================================================
+// retryFailedReels
+// =============================================================================
+/**
+ * Resets the processing status of any failed reels by setting their ai_summary to NULL.
+ * This prompts the background Python worker to re-attempt downloading and processing.
+ */
+export async function retryFailedReels(): Promise<{ success: boolean; error?: string }> {
+  let supabase: ReturnType<typeof createSupabaseServiceClient>
+  try {
+    supabase = createSupabaseServiceClient()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Configuration error'
+    return { success: false, error: message }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('reels')
+    .update({ ai_summary: null })
+    .like('ai_summary', '[FAILED]%')
+
+  if (error) {
+    console.error('[retryFailedReels] Supabase error:', error)
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/')
+  return { success: true }
+}

@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import ManualAddForm from '@/app/components/ManualAddForm';
 import ReelGrid from '@/app/components/ReelGrid';
+import RetryButton from '@/app/components/RetryButton';
 
 // Always render fresh on every request so category pills and counts reflect
 // the current state of the database (e.g. after a new reel is processed).
@@ -36,6 +37,10 @@ export default async function DashboardPage() {
   // Counters for the status badge
   const processedCount = reels.filter(
     (r) => r.ai_summary && !r.ai_summary.startsWith('[FAILED]')
+  ).length;
+
+  const failedCount = reels.filter(
+    (r) => r.ai_summary && r.ai_summary.startsWith('[FAILED]')
   ).length;
 
   return (
@@ -84,8 +89,11 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Manual Add Form */}
-          <ManualAddForm />
+          {/* Action forms/buttons */}
+          <div className="flex items-center gap-3">
+            {failedCount > 0 && <RetryButton failedCount={failedCount} />}
+            <ManualAddForm />
+          </div>
         </div>
       </header>
 
