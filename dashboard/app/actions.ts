@@ -2,14 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
-import { pipeline, env } from '@xenova/transformers'
-
-// Point the model cache at /tmp — the only writable directory on Vercel.
-env.cacheDir = '/tmp/.cache/xenova'
-env.localModelPath = '/tmp/.cache/xenova'
-env.allowRemoteModels = true
-env.allowLocalModels = false
-env.useBrowserCache = false
 
 // =============================================================================
 // Server Actions — app/actions.ts
@@ -149,20 +141,9 @@ export async function manualIngest(url: string): Promise<{ success: boolean; err
  * @returns     — Array of matching reel rows ordered by cosine similarity.
  */
 
-// Module-level pipeline promise (singleton)
+// Module-level lazy loaded extractor cache (singleton)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let embeddingPipelinePromise: Promise<any> | null = null
-
-function getEmbeddingPipeline() {
-  if (!embeddingPipelinePromise) {
-    embeddingPipelinePromise = pipeline(
-      'feature-extraction',
-      'Xenova/nomic-embed-text-v1.5',
-      { quantized: true } // use quantized model (~133 MB vs ~274 MB full)
-    )
-  }
-  return embeddingPipelinePromise
-}
+let extractorCache: any = null
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function searchReels(query: string): Promise<any[]> {
@@ -173,10 +154,21 @@ export async function searchReels(query: string): Promise<any[]> {
     // ── 1. Embed the query ──────────────────────────────────────────────────────
     let embedding: number[]
     try {
-      const pipe = await getEmbeddingPipeline()
-      // mean-pool + L2-normalize matches the Ollama nomic-embed-text output
-      const output = await pipe(trimmed, { pooling: 'mean', normalize: true })
-      // output.data is a Float32Array; convert to a plain number[] for Supabase
+      if (!extractorCache) {
+        // Dynamic import guarantees ONNX/transformers.js is not loaded during build/initial SSR
+        const { pipeline, env } = await import('@xenova/transformers') as any
+        env.allowLocalModels = false
+        env.useBrowserCache = false
+        
+        extractorCache = await pipeline(
+          'feature-extraction',
+          'Xenova/nomic-embed-text-v1.5',
+          { quantized: true }
+        )
+      }
+
+      // Generate query embedding
+      const output = await extractorCache(trimmed, { pooling: 'mean', normalize: true })
       embedding = Array.from(output.data as Float32Array)
     } catch (err) {
       console.error('[searchReels] Embedding error:', err)
