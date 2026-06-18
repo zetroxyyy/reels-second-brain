@@ -22,7 +22,17 @@ export async function POST(req: Request) {
 
     // Extract the latest user message
     const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()
-    const query = lastUserMessage?.content || ''
+    let query = ''
+    if (lastUserMessage) {
+      if (typeof lastUserMessage.content === 'string') {
+        query = lastUserMessage.content
+      } else if (Array.isArray(lastUserMessage.parts)) {
+        query = lastUserMessage.parts
+          .filter((part: any) => part.type === 'text')
+          .map((part: any) => part.text)
+          .join('')
+      }
+    }
 
     let context = 'No matching context found.'
 
@@ -85,7 +95,9 @@ Transcript: ${r.transcript || 'No transcript available.'}
       messages: await convertToModelMessages(messages),
     })
 
-    return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse({
+      originalMessages: messages,
+    })
   } catch (err: any) {
     console.error('[chat-api] Global handler exception:', err)
     return NextResponse.json(
