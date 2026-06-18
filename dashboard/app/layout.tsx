@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ChatWidget from "@/app/components/ChatWidget";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -30,6 +31,7 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-[#09090b] text-[#f4f4f5] font-sans selection:bg-purple-500/30">
         {children}
+        <ChatWidget />
       </body>
     </html>
   );
