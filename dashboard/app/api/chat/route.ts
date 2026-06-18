@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { streamText } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
+
+// Initialize the Groq provider (configured to point to Groq's custom OpenAI endpoint)
+const groq = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1',
+})
 
 // Module-level lazy loaded extractor cache (singleton)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,7 +80,7 @@ Transcript: ${r.transcript || 'No transcript available.'}
 
     // ── 3. Call StreamText with the RAG System Prompt ────────────────────────
     const result = await streamText({
-      model: openai('gpt-4o-mini'),
+      model: groq('llama-3.1-8b-instant'),
       system: `You are an elite AI assistant for a user's Second Brain. Answer the user's question using ONLY the following context from their saved Instagram Reels. Cite the original_url when referencing a specific video. If the answer is not in the context, say you don't know. Context:\n\n${context}`,
       messages,
     })
