@@ -16,21 +16,27 @@ let extractorCache: any = null
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
+
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'Messages are required.' }, { status: 400 })
     }
 
     // Extract the latest user message
     const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()
+
     let query = ''
     if (lastUserMessage) {
-      if (typeof lastUserMessage.content === 'string') {
-        query = lastUserMessage.content
-      } else if (Array.isArray(lastUserMessage.parts)) {
+      // Prioritize parts if present and not empty
+      if (Array.isArray(lastUserMessage.parts) && lastUserMessage.parts.length > 0) {
         query = lastUserMessage.parts
           .filter((part: any) => part.type === 'text')
           .map((part: any) => part.text)
           .join('')
+      }
+      
+      // Fallback to content if query is still empty/whitespace
+      if (!query.trim() && typeof lastUserMessage.content === 'string') {
+        query = lastUserMessage.content
       }
     }
 
@@ -52,7 +58,9 @@ export async function POST(req: Request) {
           )
         }
 
-        const output = await extractorCache(query, { pooling: 'mean', normalize: true })
+        // Prepend the required 'search_query: ' prefix to query for nomic-embed-text compatibility
+        const prefixedQuery = `search_query: ${query.trim()}`
+        const output = await extractorCache(prefixedQuery, { pooling: 'mean', normalize: true })
         embedding = Array.from(output.data as Float32Array)
       } catch (err) {
         console.error('[chat-api] Embedding generation failed:', err)

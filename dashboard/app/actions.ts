@@ -167,8 +167,9 @@ export async function searchReels(query: string): Promise<any[]> {
         )
       }
 
-      // Generate query embedding
-      const output = await extractorCache(trimmed, { pooling: 'mean', normalize: true })
+      // Generate query embedding with search_query: prefix for nomic-embed-text compatibility
+      const prefixedQuery = `search_query: ${trimmed}`
+      const output = await extractorCache(prefixedQuery, { pooling: 'mean', normalize: true })
       embedding = Array.from(output.data as Float32Array)
     } catch (err) {
       console.error('[searchReels] Embedding error:', err)
