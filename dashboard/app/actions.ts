@@ -101,7 +101,7 @@ export async function manualIngest(url: string): Promise<{ success: boolean; err
     .upsert(
       [{ original_url: cleanUrl }],
       {
-        onConflict:       'original_url',
+        onConflict: 'original_url',
         ignoreDuplicates: true,
       }
     )
@@ -122,7 +122,7 @@ export async function manualIngest(url: string): Promise<{ success: boolean; err
  * Semantic vector search across all processed reels.
  *
  * Pipeline:
- *   1. Lazy-load the @xenova/transformers embedding pipeline (cached in module
+ *   1. Lazy-load the @huggingface/transformers embedding pipeline (cached in module
  *      scope so subsequent calls in the same Vercel function instance are fast).
  *   2. Embed the user's query string into a 768-dim float array using the
  *      Xenova/nomic-embed-text-v1.5 ONNX model — the exact same model that
@@ -156,10 +156,10 @@ export async function searchReels(query: string): Promise<any[]> {
     try {
       if (!extractorCache) {
         // Dynamic import guarantees ONNX/transformers.js is not loaded during build/initial SSR
-        const { pipeline, env } = await import('@xenova/transformers') as any
+        const { pipeline, env } = await import('@huggingface/transformers') as any
         env.allowLocalModels = false
         env.useBrowserCache = false
-        
+
         extractorCache = await pipeline(
           'feature-extraction',
           'Xenova/nomic-embed-text-v1.5',
@@ -192,9 +192,9 @@ export async function searchReels(query: string): Promise<any[]> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any).rpc('match_reels', {
-      query_embedding:  embedding,
-      match_threshold:  0.40,   // 40 % cosine similarity minimum
-      match_count:      30,     // max 30 results
+      query_embedding: embedding,
+      match_threshold: 0.40,   // 40 % cosine similarity minimum
+      match_count: 30,     // max 30 results
     })
 
     if (error) {

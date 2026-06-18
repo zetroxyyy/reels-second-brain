@@ -33,7 +33,7 @@ export async function POST(req: Request) {
           .map((part: any) => part.text)
           .join('')
       }
-      
+
       // Fallback to content if query is still empty/whitespace
       if (!query.trim() && typeof lastUserMessage.content === 'string') {
         query = lastUserMessage.content
@@ -47,10 +47,10 @@ export async function POST(req: Request) {
       let queryEmbedding: number[] = []
       try {
         if (!extractorCache) {
-          const { pipeline, env } = await import('@xenova/transformers') as any
+          const { pipeline, env } = await import('@huggingface/transformers') as any
           env.allowLocalModels = false
           env.useBrowserCache = false
-          
+
           extractorCache = await pipeline(
             'feature-extraction',
             'Xenova/nomic-embed-text-v1.5',
@@ -73,9 +73,9 @@ export async function POST(req: Request) {
           const supabase = createSupabaseServiceClient()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data, error } = await (supabase as any).rpc('match_reels', {
-            query_embedding:  queryEmbedding,
-            match_threshold:  0.01,
-            match_count:      5,
+            query_embedding: queryEmbedding,
+            match_threshold: 0.01,
+            match_count: 5,
           })
 
           let contextString = 'No matching context found.'
