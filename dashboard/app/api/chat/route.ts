@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { streamText } from 'ai'
+import { streamText, convertToModelMessages } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createSupabaseServiceClient } from '@/utils/supabase/server'
 
@@ -82,7 +82,7 @@ Transcript: ${r.transcript || 'No transcript available.'}
     const result = await streamText({
       model: groq('llama-3.1-8b-instant'),
       system: `You are an elite AI assistant for a user's Second Brain. Answer the user's question using ONLY the following context from their saved Instagram Reels. Cite the original_url when referencing a specific video. If the answer is not in the context, say you don't know. Context:\n\n${context}`,
-      messages,
+      messages: await convertToModelMessages(messages),
     })
 
     return result.toUIMessageStreamResponse()
