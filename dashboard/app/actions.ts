@@ -8,6 +8,8 @@ import { pipeline, env } from '@xenova/transformers'
 env.cacheDir = '/tmp/.cache/xenova'
 env.localModelPath = '/tmp/.cache/xenova'
 env.allowRemoteModels = true
+env.allowLocalModels = false
+env.useBrowserCache = false
 
 // =============================================================================
 // Server Actions — app/actions.ts

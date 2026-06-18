@@ -66,7 +66,7 @@ function ReelCard({ reel }: { reel: Reel }) {
   const topic       = reel.entities?.topic ?? ''
 
   return (
-    <div className="group relative flex flex-col rounded-2xl overflow-hidden bg-[#111113] border border-white/5 transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-500/25 hover:shadow-[0_16px_48px_-12px_rgba(168,85,247,0.2)]">
+    <div className="group relative flex flex-col rounded-2xl overflow-hidden bg-gradient-to-b from-[#111113] to-[#09090b] border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:border-purple-500/25 hover:shadow-2xl hover:shadow-purple-500/10">
       
       {/* Sleek Minimalist Card Header */}
       <div className="flex items-center justify-between p-4 bg-white/[0.02] border-b border-white/5">
@@ -92,7 +92,7 @@ function ReelCard({ reel }: { reel: Reel }) {
               {shortcode ? `reel/${shortcode}` : 'View Instagram Reel'}
             </a>
             <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 mt-0.5">
-              <Calendar className="w-3 h-3" />
+              <Calendar className="w-3.5 h-3.5" />
               <span>
                 {new Date(reel.created_at).toLocaleDateString(undefined, {
                   month: 'short',
@@ -149,7 +149,7 @@ function ReelCard({ reel }: { reel: Reel }) {
 
         {/* AI Summary */}
         {isProcessed && reel.ai_summary && (
-          <p className="text-[12px] text-zinc-300 leading-relaxed font-medium">
+          <p className="text-[12px] text-zinc-300 leading-relaxed font-medium line-clamp-3">
             {reel.ai_summary}
           </p>
         )}
@@ -280,14 +280,14 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
         </p>
 
         {/* Search input */}
-        <div className="relative group max-w-xl mx-auto">
-          {/* Glow ring */}
-          <div className="absolute -inset-px bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-0 group-focus-within:opacity-50 transition-opacity duration-300 pointer-events-none" />
-          <div className="relative flex items-center bg-[#0f0f11] border border-white/10 rounded-xl overflow-hidden shadow-2xl group-focus-within:border-purple-500/40 transition-colors">
+        <div className="relative group max-w-2xl mx-auto">
+          {/* Subtle ambient glow behind input */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl blur-lg opacity-75 group-focus-within:opacity-100 transition duration-500" />
+          <div className="relative flex items-center bg-[#09090b]/80 border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl group-focus-within:border-purple-500/40 group-focus-within:ring-4 group-focus-within:ring-purple-500/10 transition-all duration-300">
             {isSearching ? (
-              <Loader2 className="w-5 h-5 text-purple-400 ml-4 flex-shrink-0 animate-spin" />
+              <Loader2 className="w-5.5 h-5.5 text-purple-400 ml-4.5 flex-shrink-0 animate-spin" />
             ) : (
-              <Search className="w-5 h-5 text-zinc-500 ml-4 flex-shrink-0 group-focus-within:text-purple-400 transition-colors" />
+              <Search className="w-5.5 h-5.5 text-zinc-500 ml-4.5 flex-shrink-0 group-focus-within:text-purple-400 transition-colors" />
             )}
             <input
               ref={inputRef}
@@ -296,14 +296,14 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
-              placeholder="Try: 'pasta recipe', 'travel in Japan', 'Python tutorial'…"
-              className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 px-3 py-4 outline-none border-none font-medium"
+              placeholder="Search concepts: 'pasta recipe', 'Japan travel', 'Python tutorial'…"
+              className="flex-1 bg-transparent text-base text-white placeholder-zinc-500 focus:placeholder-zinc-600 px-4 py-4.5 outline-none border-none font-medium transition-all"
             />
             {/* Clear button */}
             {searchQuery && (
               <button
                 onClick={clearSearch}
-                className="mr-2 p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-all"
+                className="mr-2.5 p-1.5 rounded-xl text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-all"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -312,9 +312,9 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
             <button
               onClick={() => handleSearch(searchQuery)}
               disabled={isSearching || !searchQuery.trim()}
-              className="mr-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_16px_rgba(168,85,247,0.4)] transition-all active:scale-95"
+              className="mr-3.5 flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold hover:scale-102 hover:shadow-[0_0_24px_rgba(168,85,247,0.35)] transition-all active:scale-98 disabled:opacity-40 disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-4 h-4" />
               Search
             </button>
           </div>
@@ -331,15 +331,15 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
 
       {/* ── Category Filter Pills ─────────────────────────────────────────── */}
       {categories.length > 0 && !isInSearchMode && (
-        <div className="flex flex-wrap gap-2 justify-center">
+        <div className="flex flex-wrap gap-2 justify-center max-w-4xl mx-auto px-4">
           {/* "All" pill */}
           <button
             onClick={() => setActiveCategory(null)}
             className={`
-              px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border
+              px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 border
               ${!activeCategory
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow-[0_0_16px_rgba(168,85,247,0.3)]'
-                : 'bg-white/[0.04] border-white/10 text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 hover:border-white/15'}
+                ? 'bg-white border-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.15)] hover:bg-zinc-100'
+                : 'bg-transparent border-white/10 text-zinc-400 hover:text-white hover:border-white/20 hover:bg-white/[0.03]'}
             `}
           >
             All ({initialReels.length})
@@ -355,15 +355,15 @@ export default function ReelGrid({ initialReels }: ReelGridProps) {
                 key={cat}
                 onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
                 className={`
-                  flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border
+                  flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300 border
                   ${activeCategory === cat
-                    ? 'bg-purple-500/20 border-purple-500/40 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                    : 'bg-white/[0.04] border-white/8 text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 hover:border-white/15'}
+                    ? 'bg-purple-500 border-purple-500 text-white shadow-[0_4px_20px_rgba(168,85,247,0.25)]'
+                    : 'bg-transparent border-white/10 text-zinc-400 hover:text-white hover:border-white/20 hover:bg-white/[0.03]'}
                 `}
               >
-                <Tag className="w-3 h-3 opacity-60" />
-                {cat}
-                <span className="opacity-50">({count})</span>
+                <Tag className="w-3.5 h-3.5 opacity-60" />
+                <span className="capitalize">{cat}</span>
+                <span className="opacity-50 text-[10px]">({count})</span>
               </button>
             )
           })}

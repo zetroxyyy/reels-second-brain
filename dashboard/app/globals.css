@@ -10,6 +10,17 @@
   --color-foreground: #fafafa; /* Zinc 50 */
   --font-sans: var(--font-plus-jakarta), sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+
+  --animate-gradient-text: gradient-text 5s ease infinite;
+
+  @keyframes gradient-text {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
 }
 
 body {

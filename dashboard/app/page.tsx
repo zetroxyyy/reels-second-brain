@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       <div className="fixed top-20 right-1/4 w-[500px] h-[500px] bg-indigo-600/8 rounded-full blur-[140px] pointer-events-none -z-10" />
 
       {/* ── Top Navigation Bar ──────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#09090b]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-4">
 
           {/* Logo */}
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
               <BrainCircuit className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-sm font-bold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent leading-none">
+              <h1 className="text-sm font-extrabold tracking-tight bg-gradient-to-r from-white via-purple-300 to-pink-400 bg-[length:200%_auto] animate-gradient-text bg-clip-text text-transparent leading-none">
                 Reels Second Brain
               </h1>
               <p className="text-[10px] text-zinc-500 font-semibold tracking-wide uppercase mt-0.5">
