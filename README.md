@@ -2,235 +2,326 @@
 
 # 🎬 Reels Second Brain
 
-**An open-source system to capture, store, and semantically search every Instagram Reel you've ever saved.**
+**A high-performance, open-source system to capture, store, transcribe, summarize, and semantically search every Instagram Reel you've ever saved.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-a78bfa.svg)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](dashboard/)
-[![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-blue?logo=googlechrome)](manifest.json)
-[![Supabase](https://img.shields.io/badge/Supabase-pgvector-3ecf8e?logo=supabase)](schema.sql)
+[![License: MIT](https://img.shields.io/badge/License-MIT-a78bfa.svg)](#-license)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.9-black?logo=next.js&logoColor=white)](dashboard/)
+[![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-blue?logo=googlechrome&logoColor=white)](manifest.json)
+[![Supabase](https://img.shields.io/badge/Supabase-pgvector-3ecf8e?logo=supabase&logoColor=white)](schema.sql)
+[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-orange?logo=ollama&logoColor=white)](docker-compose.yml)
+[![Docker](https://img.shields.io/badge/Docker-Orchestration-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+
+<p align="center">
+  <a href="#-system-architecture">Architecture</a> •
+  <a href="#-deep-dive-mechanisms">Core Mechanisms</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-setup--quick-start">Quick Start</a> •
+  <a href="#-database-schema">Database Schema</a> •
+  <a href="#-docker-orchestration">Docker Deployment</a>
+</p>
 
 </div>
 
 ---
 
-## 📖 What is this?
+## 📖 Project Overview
 
-Instagram lets you save Reels, but gives you no way to search, organize, or rediscover them. **Reels Second Brain** fixes that.
+Instagram lets you save Reels, but it provides no search function, tag filtering, or way to rediscover them. **Reels Second Brain** bridges this gap. 
 
-It is a **three-phase open-source project**:
-
-| Phase | Component | Status |
-|:---:|---|:---:|
-| **1** | Chrome Extension — scrapes every saved Reel URL | ✅ Complete |
-| **2** | Next.js Dashboard + Supabase — stores URLs, powers the UI | ✅ Complete |
-| **3** | VPS Pipeline — downloads videos, transcribes, embeds, enables semantic search | 🔜 Planned |
+By combining a lightweight **Chrome Extension (Manifest V3)** for native browser scraping, a **Next.js Web Application** for a sleek glassmorphic dashboard interface and RAG chat widget, a **Supabase PostgreSQL Cloud Database** for indexing, and an **Asynchronous Daemon Engine** (running in **Docker** on a VPS) for downloading, transcribing, and embedding, you get a zero-local-dependency, cost-free AI Second Brain for your saved Reels library.
 
 ---
 
-## 🗂️ Monorepo Structure
+## 🌐 System Architecture
 
-```
-reels-second-brain/
-│
-├── 📦 Chrome Extension (Phase 1)
-│   ├── manifest.json        # Manifest V3 — permissions & content script
-│   ├── content.js           # HUD widget + Dynamic Delta Polling engine
-│   ├── popup.html           # Toolbar popup (instructions & quick-nav)
-│   ├── icons/               # Extension icons (16px, 48px, 128px)
-│   └── schema.sql           # Supabase SQL — run this first
-│
-└── 🖥️  dashboard/           # Next.js 16 Web App (Phase 2)
-    ├── app/
-    │   ├── api/
-    │   │   └── ingest/
-    │   │       └── route.ts # POST /api/ingest — bridge from extension to DB
-    │   ├── layout.tsx
-    │   └── page.tsx
-    ├── types/
-    │   └── database.ts      # TypeScript interfaces + Zod runtime schemas
-    ├── utils/
-    │   └── supabase/
-    │       ├── server.ts    # Cookie-aware & service-role Supabase clients
-    │       └── client.ts    # Browser Supabase client
-    ├── middleware.ts         # Supabase session refresh on every request
-    ├── .env.local.example   # ← Copy this to .env.local and fill in secrets
-    └── package.json         # next, @supabase/ssr, @supabase/supabase-js, zod
+The workflow is designed to run asynchronously. The Chrome Extension adds raw URLs to Supabase, which a Python worker on a VPS polls and enriches. The Next.js app queries both Supabase and the VPS to serve the user.
+
+```mermaid
+graph TD
+    subgraph Browser [User Web Browser]
+        Ext[Chrome Extension MV3 Scraper] -->|HUD Widget: POST Ingestion| IngestAPI[Next.js App /api/ingest]
+        ChatWidget[Dashboard RAG Chat Widget] <-->|Stream Response| ChatAPI[Next.js App /api/chat]
+    end
+
+    subgraph SupabaseCloud [Supabase Cloud Database]
+        DB[(PostgreSQL + pgvector)]
+        IngestAPI -->|Idempotent Upsert| DB
+        ChatAPI <-->|RPC match_reels| DB
+        DaemonWorker -->|Update transcript, summary, entities, embedding| DB
+    end
+
+    subgraph VPSOrchestration [Contabo VPS Docker Environment]
+        DaemonWorker[Python Worker Daemon] <-->|Poll Queue / Process| DB
+        DaemonWorker -->|Local Audio Transcription| Whisper[OpenAI Whisper Container]
+        DaemonWorker -->|Local Embeddings & Summary| Ollama[Ollama nomic-embed-text / llama3]
+        ChatAPI -->|Fetch Vector: 768-dim nomic-embed-text| Ollama
+    end
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🧠 Deep-Dive Mechanisms
 
-### Prerequisites
+### 1. Chrome Extension (Manifest V3) & Dynamic Delta Polling
+The Chrome Extension runs natively inside the Instagram Saved posts interface. To bypass arbitrary rate-limiting or loading stalls, it uses a **Dynamic Delta Polling** algorithm:
+* **Passive DOM Scanning**: It scans for `/reel/` anchor tags, adding them to a JavaScript `Set` to prevent duplicate operations in memory.
+* **Smart Auto-Scrolling**: It triggers page scrolling to load more elements, polling every `200ms`.
+* **State Check Engine**: If the catalog size does not increase for `5 seconds`, it verifies if the `scrollHeight` changed. If the height grew, it resets. If it remains identical, it increments a stall counter (hitting `2` stalls signals the true end of the saved catalog).
+* **Delta Syncing**: Before starting, the extension fetches already-ingested URLs from the Next.js `/api/latest` endpoint, stopping automatically the moment it encounters an already-synced URL.
 
-- **Node.js** 18+ and **npm**
-- A **Supabase** project ([free tier works](https://supabase.com))
-- **Google Chrome** (for the extension)
+### 2. Asynchronous Daemon Engine (Worker)
+The Python worker daemon sits in a Docker container on the VPS and runs a continuous polling loop looking for unprocessed reels:
+* **Audio Extraction**: Bypasses full video downloads using `yt-dlp` to download the audio track only (saving network, storage, and CPU bandwidth).
+* **Robust Transcription**: Sends the audio to local `OpenAI Whisper` for speech-to-text transcription.
+* **AI Summarization & Entity Parsing**: Feeds the transcript to a local `llama3` instance inside Ollama to extract summaries, tags, ingredients, recipes, or topics as structured JSON.
+* **Embedding Alignment**: Computes a 768-dimensional semantic embedding of the summary using `nomic-embed-text`. If any step fails, it marks the reel as `[FAILED]`, allowing the dashboard user to trigger retries.
 
----
-
-### Step 1 — Set up the Database
-
-1. Open your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql)
-2. Paste the contents of [`schema.sql`](schema.sql) and click **Run**
-
-This creates the `reels` table with pgvector enabled and all indexes.
-
----
-
-### Step 2 — Install the Chrome Extension
-
-1. Go to `chrome://extensions` in Chrome
-2. Enable **Developer Mode** (top-right toggle)
-3. Click **Load unpacked** → select this root folder
-4. The 🎬 icon appears in your toolbar
-
-**How to use it:**
-- Navigate to `instagram.com/YOUR_USERNAME/saved/all-posts/`
-- The HUD widget appears in the bottom-right corner
-- Click **Sync Library** and wait — it auto-scrolls and captures every Reel URL
-- Click **Download JSON** when complete
-
----
-
-### Step 3 — Run the Dashboard
-
-```bash
-cd dashboard
-
-# 1. Copy the env template and fill in your Supabase credentials
-cp .env.local.example .env.local
-
-# 2. Install dependencies
-npm install
-
-# 3. Start the development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
-### Step 4 — Ingest Your Reels
-
-Once the extension has finished scraping, take the downloaded JSON file and POST it to the dashboard:
-
-```bash
-curl -X POST http://localhost:3000/api/ingest \
-  -H "Content-Type: application/json" \
-  -d @reels-second-brain-2025-06-14.json
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "inserted": 230,
-  "skipped": 17,
-  "total": 247,
-  "errors": []
-}
-```
-
-> Re-running the same export is always safe — the upsert is idempotent.
-
----
-
-## 🧠 How the Extraction Engine Works
-
-The Chrome Extension uses a **Dynamic Delta Polling** algorithm — no hardcoded timers:
-
-```
-1. Harvest all visible /reel/ anchor tags → JavaScript Set (deduplication)
-2. Scroll to the bottom of the page
-3. Poll every 200ms — the moment Set.size grows, stop polling & scroll again
-4. If nothing grows for 5 consecutive seconds:
-   └─ Check if scrollHeight changed
-       ├─ Grew → more content loading, reset and retry
-       └─ Same → stall counter++  (2 stalls = truly at the end)
-5. Final sweep + console.log + Download JSON button
-```
-
-This guarantees **zero missed Reels** regardless of network speed or library size.
-
----
-
-## 🗄️ Database Schema
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | `UUID` | Auto-generated primary key |
-| `original_url` | `TEXT UNIQUE` | Canonical Instagram Reel URL |
-| `video_path` | `TEXT` | Object-storage path (Phase 3) |
-| `transcript` | `TEXT` | Speech-to-text (Phase 3) |
-| `visual_description` | `TEXT` | AI visual description (Phase 3) |
-| `ai_summary` | `TEXT` | Combined AI summary (Phase 3) |
-| `entities` | `JSONB` | Tags, ingredients, people, topics |
-| `embedding` | `vector(768)` | Semantic embedding for similarity search |
-| `created_at` | `TIMESTAMPTZ` | Row creation timestamp |
-
----
-
-## 🔒 Environment Variables
-
-| Variable | Where to find it | Required |
-|---|---|:---:|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL | ✅ |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon key | ✅ |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → service_role | ✅ |
-
-> ⚠️ **Never commit `.env.local`** — it is listed in `.gitignore`. Only the `.env.local.example` template is tracked.
-
----
-
-## 🔌 Chrome Extension Permissions
-
-| Permission | Reason |
-|---|---|
-| `activeTab` | Interact with the current Instagram tab |
-| `scripting` | Inject the HUD content script |
-| `storage` | Reserved for future local caching |
-| `*://*.instagram.com/*` | Host permission to run on Instagram |
+### 3. RAG Chat Widget & VPS Vector Network Bypass
+The floating Chat widget in the Next.js app provides an interface to query your library.
+* **Query Embedding**: To bypass Vercel serverless limitations (Vercel environment restrictions reject local ONNX/Transformers runtimes), the Next.js API route calls the VPS Ollama server (`http://178.18.252.66:11434/api/embeddings`) using standard HTTP `fetch`.
+* **Prefixing**: The route prepends `search_query: ` to the search query. This aligns the vector search space with the document index vectors (which are stored with the `search_document: ` prefix prepended by Ollama).
+* **Vector Match RPC**: Passes the computed 768-dim vector to the Supabase database. The `match_reels` SQL RPC executes cosine similarity math, matching transcripts and summaries even with a permissive threshold (e.g., `0.01`).
+* **Groq streaming**: Returns matching context records and streams them via Groq's `llama-3.1-8b-instant` LLM using Vercel AI SDK streams.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Chrome Extension | Vanilla JS, Manifest V3 |
-| Web Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 (strict mode) |
-| Styling | Tailwind CSS 4 |
-| Database | Supabase (PostgreSQL + pgvector) |
-| Validation | Zod 4 |
-| Auth | Supabase Auth + `@supabase/ssr` |
+| Layer | Technology | Description |
+|---|---|---|
+| **Frontend** | Next.js 16 (App Router) | Premium glassmorphism UI styled with Tailwind CSS 4 |
+| **Ingestion Bridge** | Chrome Extension | Manifest V3 content script with Dynamic Delta Polling |
+| **Cloud Database** | Supabase | PostgreSQL + `pgvector` extension for semantic indexing |
+| **Orchestration** | Docker / Docker Compose | Multi-container system linking Ollama and Python worker |
+| **Worker Engine** | Python 3.10 | Downloads audio via `yt-dlp` and processes pipelines |
+| **Speech-To-Text** | OpenAI Whisper (Base) | Audio-to-text local translation |
+| **AI Summarization** | Ollama (`llama3`) | Local context summaries & JSON entity extraction |
+| **Vector Embedding** | Ollama (`nomic-embed-text`) | Local 768-dimensional semantic indexing |
+| **LLM Streaming** | Groq (`llama-3.1-8b-instant`) | Vercel AI SDK stream provider |
 
 ---
 
-## 🗺️ Roadmap
+## 🚀 Setup & Quick Start
 
-- [x] **Phase 1** — Chrome Extension scraper with Dynamic Delta Polling
-- [x] **Phase 2** — Next.js dashboard, Supabase schema, ingestion API
-- [ ] **Phase 3** — VPS pipeline: download videos, Whisper transcription, Ollama embeddings
-- [ ] **Phase 4** — Semantic search UI, tag filtering, AI-powered recommendations
-- [ ] **Phase 5** — Mobile-friendly PWA interface
+### Prerequisites
+* **Node.js** 18+ and **npm**
+* A **Supabase** account
+* **Docker** & **Docker Compose** installed on your VPS/server
+* **Google Chrome** browser
 
 ---
 
-## 🤝 Contributing
+### Step 1 — Database Setup (Supabase)
 
-This project is open-source under the MIT license. Contributions, issues, and feature requests are welcome.
+Log in to your Supabase Console, open the **SQL Editor**, paste the following schema, and click **Run**:
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -m 'feat: add my feature'`
-4. Push to the branch: `git push origin feature/my-feature`
-5. Open a Pull Request
+```sql
+-- 1. Enable vector extension
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+
+-- 2. Create Reels Table
+CREATE TABLE IF NOT EXISTS public.reels (
+  id                 UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  original_url       TEXT          NOT NULL UNIQUE,
+  video_path         TEXT,
+  transcript         TEXT,
+  visual_description TEXT,
+  ai_summary         TEXT,
+  entities           JSONB,
+  embedding          vector(768),
+  created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+-- 3. Create Indexes
+CREATE INDEX IF NOT EXISTS idx_reels_created_at ON public.reels (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reels_entities ON public.reels USING gin (entities);
+
+-- 4. Enable Row Level Security (RLS)
+ALTER TABLE public.reels ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users have full access to reels"
+  ON public.reels FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow public read access to reels"
+  ON public.reels FOR SELECT USING (true);
+```
+
+Next, paste this search RPC function and run it. This function handles the similarity calculations:
+
+```sql
+CREATE OR REPLACE FUNCTION match_reels(
+  query_embedding  vector(768),
+  match_threshold  float,
+  match_count      int
+)
+RETURNS TABLE (
+  id                uuid,
+  original_url      text,
+  transcript        text,
+  ai_summary        text,
+  entities          jsonb,
+  created_at        timestamptz,
+  similarity        float
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    r.id,
+    r.original_url,
+    r.transcript,
+    r.ai_summary,
+    r.entities,
+    r.created_at,
+    (1 - (r.embedding <=> query_embedding))::float AS similarity
+  FROM   public.reels r
+  WHERE
+    r.embedding IS NOT NULL
+    AND (r.ai_summary IS NULL OR r.ai_summary NOT LIKE '%[FAILED]%')
+    AND (1 - (r.embedding <=> query_embedding)) > match_threshold
+  ORDER BY
+    r.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION match_reels(vector(768), float, int) TO anon, authenticated, service_role;
+```
+
+---
+
+### Step 2 — Install Chrome Extension Scraper
+
+1. In Chrome, open `chrome://extensions/`.
+2. Toggle **Developer mode** in the top right.
+3. Click **Load unpacked** and select the repository root folder.
+4. The 🎬 icon will appear in your extension toolbar.
+
+**How to sync:**
+1. Log in to Instagram and navigate to `instagram.com/YOUR_USERNAME/saved/all-posts/`.
+2. Click **Sync Library** in the bottom-right HUD widget. The page will auto-scroll, scrape saved Reels, and check them against the database.
+3. Click **Download JSON** once the sync completes.
+
+---
+
+### Step 3 — Dashboard Configuration (Next.js)
+
+Clone/move to the `dashboard` directory:
+
+```bash
+cd dashboard
+cp .env.local.example .env.local
+```
+
+Fill in the `.env.local` file with the environment variables from Vercel/Supabase:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-secret-service-role-key
+
+# OpenAI / Groq API Configuration
+OPENAI_API_KEY=your-groq-api-key
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+```
+
+Install packages and run the application:
+
+```bash
+npm install
+npm run dev
+```
+
+The dashboard will be available at `http://localhost:3000`.
+
+---
+
+### Step 4 — Ingesting Data
+
+You can upload the JSON file exported from the Chrome Extension to your database using curl:
+
+```bash
+curl -X POST http://localhost:3000/api/ingest \
+  -H "Content-Type: application/json" \
+  -d @reels-second-brain-sync.json
+```
+
+---
+
+## 🐳 Docker Orchestration
+
+To run the AI extraction pipeline (Ollama + Whisper worker daemon) on your VPS or server, configure your variables and spin up the Docker Compose stack.
+
+### 1. Configure Host Environment
+Create a `.env` file in the root directory:
+
+```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-secret-service-role-key
+```
+
+### 2. Add Cookies (Optional but Recommended)
+If your daemon runs into Instagram login blocks, save your authenticated Instagram session cookies to `worker/cookies.txt`. The container mounts this file automatically to bypass bot detection.
+
+### 3. Spin Up the Stack
+Run this command from the root of the project repository:
+
+```bash
+docker-compose up -d --build
+```
+
+### 4. Pull the Embedding & LLM Models
+Initialize Ollama inside the container to download the models required for transcription, summarization, and vector embeddings:
+
+```bash
+# Pull the summarization LLM (Llama 3)
+docker exec -it rsb-ollama ollama pull llama3
+
+# Pull the vector embedding model (Nomic Embed Text)
+docker exec -it rsb-ollama ollama pull nomic-embed-text
+```
+
+The Python worker daemon will automatically begin polling Supabase for new reels, extracting their audio, transcribing, summarizing, and writing the computed 768-dimensional embeddings back to the database.
+
+---
+
+## 🗂️ Monorepo Folder Structure
+
+```
+reels-second-brain/
+├── docker-compose.yml       # Root orchestration config (Ollama + Worker)
+├── manifest.json            # Chrome Scraper extension descriptor (Manifest V3)
+├── content.js               # HUD overlay script & Dynamic Delta Polling
+├── popup.html               # Chrome Extension toolbar popup interface
+├── schema.sql               # Supabase Database table layouts & policies
+├── supabase_search.sql      # Supabase match_reels RPC vector search function
+├── icons/                   # Extension icons (16px, 48px, 128px)
+│
+├── dashboard/               # Next.js 16 Web Application
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── chat/        # POST /api/chat — RAG chat handler using VPS Ollama
+│   │   │   ├── ingest/      # POST /api/ingest — Scraper payload database bridge
+│   │   │   └── latest/      # GET /api/latest — Fetches already-ingested URLs
+│   │   ├── components/      # ChatWidget, ReelGrid, ManualAddForm React components
+│   │   ├── page.tsx         # Dashboard core layout page
+│   │   └── layout.tsx       # Global layouts embedding the chat widget
+│   ├── utils/supabase/      # Supabase Server & Client connections
+│   ├── next.config.ts       # Clean Next.js configuration
+│   └── package.json         # Vercel AI SDK, Supabase SSR, Tailwind configurations
+│
+└── worker/                  # Asynchronous VPS Pipeline Daemon
+    ├── Dockerfile           # Optimized Python slim multi-dependency container
+    ├── main.py              # Main loop polling db, transcribing, and embedding
+    └── requirements.txt     # Python requirements (yt-dlp, whisper, supabase)
+```
 
 ---
 
 ## 📄 License
 
-MIT — free to use, modify, and distribute.
+This project is open-source software licensed under the **MIT License**. Feel free to use, modify, and distribute it.
